@@ -1,0 +1,46 @@
+default_language_version:
+  python: python3
+
+ci:
+  autofix_prs: true
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit suggestions'
+  autoupdate_schedule: quarterly
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: requirements-txt-fixer
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+        args: ['--maxkb=2500']
+      - id: trailing-whitespace
+
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.8.5
+    hooks:
+    - id: nbqa-black
+      additional_dependencies: [black==22.3.0]
+    - id: nbqa-isort
+      additional_dependencies: [isort==5.6.4]
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: Format imports
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.4.2
+    hooks:
+      - id: black-jupyter
+        name: Format code
+        additional_dependencies: ['click==8.0.2']
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.4.3'
+    hooks:
+      - id: ruff
