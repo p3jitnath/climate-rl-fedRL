@@ -59,7 +59,7 @@ class Args:
     capture_video_freq: int = 100
     """episode frequency at which to capture video"""
 
-    env_id: str = "ClimateModel-v0"
+    env_id: str = "SimpleClimateBiasCorrection-v0"
     """the environment id of the environment"""
     total_timesteps: int = 60000
     """total timesteps of the experiments"""

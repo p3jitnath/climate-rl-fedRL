@@ -4,7 +4,7 @@ import numpy as np
 import redis
 
 
-class ClimateModelEnv(gym.Env):
+class SimpleClimateBiasCorrectionEnv(gym.Env):
     """
     OpenAI Gym environment for interacting with a Fortran climate model.
     """
@@ -15,7 +15,7 @@ class ClimateModelEnv(gym.Env):
         """
         Initialize the climate environment.
         """
-        super(ClimateModelEnv, self).__init__()
+        super(SimpleClimateBiasCorrectionEnv, self).__init__()
 
         # Connect to Redis to store state and parameters
         self.r = redis.Redis(host="localhost", port=6379, db=0)
@@ -115,7 +115,7 @@ class ClimateModelEnv(gym.Env):
 
 
 # Create an instance of the climate environment
-env = ClimateModelEnv()
+env = SimpleClimateBiasCorrectionEnv()
 
 # Run a simple loop interacting with the environment
 obs = env.reset()
