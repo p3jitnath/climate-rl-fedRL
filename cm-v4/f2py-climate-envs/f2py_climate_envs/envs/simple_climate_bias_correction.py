@@ -1,15 +1,18 @@
+import os
+
 import gymnasium as gym
 import numpy as np
 import pygame
-import redis
-import scm
 from gymnasium import spaces
+from smartredis import Client
+from smartsim import Experiment
+from smartsim.database import Orchestrator
 
 
 class SimpleClimateBiasCorrectionEnv(gym.Env):
     """
     A gym environment for a simple climate bias correction problem,
-    using Redis to pass parameters and Fortran model for temperature evolution.
+    using a Fortran model for temperature evolution and calculating the cost (reward) in Python.
     """
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
@@ -25,9 +28,6 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         self.count = 0.0
         self.screen = None
         self.clock = None
-
-        # Connect to Redis
-        self.r = redis.Redis(host="localhost", port=6379, db=0)
 
         # Define action and observation spaces
         self.action_space = spaces.Box(
@@ -46,12 +46,19 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
             render_mode is None or render_mode in self.metadata["render_modes"]
         )
         self.render_mode = render_mode
+
+        # SmartRedis setup
+        self.REDIS_ADDRESS = os.getenv("SSDB")
+        if self.REDIS_ADDRESS is None:
+            raise EnvironmentError("SSDB environment variable is not set.")
+        self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
+        print(f"Connected to Redis server: {self.REDIS_ADDRESS}")
+
         self.reset()
 
     def step(self, u):
         """
         Performs one step in the environment using the action `u` (heating increment).
-        The parameters are passed via Redis to the Fortran model.
 
         Args:
             u (float): The action, representing a heating increment.
@@ -60,23 +67,22 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
             tuple: A tuple containing the new observation, the reward, whether the episode is done,
                    and additional information.
         """
-        current_temperature = self.state[0]
 
         # Clip action to the allowed range
         u = np.clip(u, -self.max_heating_rate, self.max_heating_rate)[0]
 
-        # Store current temperature and action in Redis
-        self.r.set("current_temperature", float(current_temperature))
-        self.r.set("heating_increment", float(u))
+        # Send the heating increment to Redis
+        self.redis.put_tensor("py2f_redis", np.array([u], dtype=np.float64))
+        self.redis.put_tensor("SIGCOMPUTE", np.array([1], dtype=np.int32))
 
-        # Call the Fortran model (simulated through Redis in this case)
-        new_temperature = scm.forward(u, current_temperature)
-
-        # Store the new temperature in Redis
-        self.r.set("new_temperature", float(new_temperature))
-
-        # Retrieve the new temperature from Redis (simulated round-trip)
-        new_temperature = float(self.r.get("new_temperature"))
+        # Wait for the Fortran model to compute the new temperature and retrieve it
+        new_temperature = None
+        while new_temperature is None:
+            if self.redis.tensor_exists("f2py_redis"):
+                new_temperature = self.redis.get_tensor("f2py_redis")[0]
+                self.redis.delete_tensor("f2py_redis")
+            else:
+                continue  # Wait for the computation to complete
 
         # Clip the new temperature to the allowed range
         new_temperature = np.clip(
@@ -101,9 +107,20 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
             np.array: The initial observation.
         """
         super().reset(seed=seed)
-        self.state = np.array([(300 - 273.15) / 100])  # Starting temperature
-        # Initialize Redis with the starting state
-        self.r.set("current_temperature", float(self.state[0]))
+
+        # Send the reset siganl to the Fortran model
+        self.redis.put_tensor("SIGRESET", np.array([1], dtype=np.int32))
+
+        # Wait for the Fortran model to compute the new temperature and retrieve it
+        initial_temperature = None
+        while initial_temperature is None:
+            if self.redis.tensor_exists("f2py_redis"):
+                initial_temperature = self.redis.get_tensor("f2py_redis")[0]
+                self.redis.delete_tensor("f2py_redis")
+            else:
+                continue  # Wait for the computation to complete
+
+        self.state = np.array([initial_temperature])
         return self._get_obs(), self._get_info()
 
     def _get_info(self):

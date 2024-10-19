@@ -2,7 +2,7 @@ import json
 
 from gymnasium.envs.registration import register
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v3"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v4"
 
 register(
     id="SimpleClimateBiasCorrection-v0",
