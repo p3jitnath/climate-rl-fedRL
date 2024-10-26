@@ -17,7 +17,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
-    def __init__(self, render_mode=None):
+    def __init__(self, seed, render_mode=None):
         """
         Initialize the environment, action space, and observation space.
         """
@@ -28,6 +28,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         self.count = 0.0
         self.screen = None
         self.clock = None
+        self.seed = seed
 
         # Define action and observation spaces
         self.action_space = spaces.Box(
@@ -54,7 +55,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
         print(f"Connected to Redis server: {self.REDIS_ADDRESS}")
 
-        self.reset()
+        self.reset(self.seed)
 
     def step(self, u):
         """
@@ -72,15 +73,21 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         u = np.clip(u, -self.max_heating_rate, self.max_heating_rate)[0]
 
         # Send the heating increment to Redis
-        self.redis.put_tensor("py2f_redis", np.array([u], dtype=np.float64))
-        self.redis.put_tensor("SIGCOMPUTE", np.array([1], dtype=np.int32))
+        self.redis.put_tensor(
+            f"py2f_redis_s{self.seed}", np.array([u], dtype=np.float64)
+        )
+        self.redis.put_tensor(
+            f"SIGCOMPUTE_S{self.seed}", np.array([1], dtype=np.int32)
+        )
 
         # Wait for the Fortran model to compute the new temperature and retrieve it
         new_temperature = None
         while new_temperature is None:
-            if self.redis.tensor_exists("f2py_redis"):
-                new_temperature = self.redis.get_tensor("f2py_redis")[0]
-                self.redis.delete_tensor("f2py_redis")
+            if self.redis.tensor_exists(f"f2py_redis_s{self.seed}"):
+                new_temperature = self.redis.get_tensor(
+                    f"f2py_redis_s{self.seed}"
+                )[0]
+                self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
             else:
                 continue  # Wait for the computation to complete
 
@@ -107,20 +114,27 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
             np.array: The initial observation.
         """
         super().reset(seed=seed)
+        if seed is not None:
+            self.seed = seed
 
-        # Send the start siganl to the Fortran model
-        self.redis.put_tensor("SIGSTART", np.array([1], dtype=np.int32))
+        # Send the start signal to the Fortran model
+        self.redis.put_tensor(
+            f"SIGSTART_S{self.seed}", np.array([1], dtype=np.int32)
+        )
 
         # Wait for the Fortran model to compute the new temperature and retrieve it
         initial_temperature = None
         while initial_temperature is None:
-            if self.redis.tensor_exists("f2py_redis"):
-                initial_temperature = self.redis.get_tensor("f2py_redis")[0]
-                self.redis.delete_tensor("f2py_redis")
+            if self.redis.tensor_exists(f"f2py_redis_s{self.seed}"):
+                initial_temperature = self.redis.get_tensor(
+                    f"f2py_redis_s{self.seed}"
+                )[0]
+                self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
             else:
                 continue  # Wait for the computation to complete
 
         self.state = np.array([initial_temperature])
+
         return self._get_obs(), self._get_info()
 
     def _get_info(self):

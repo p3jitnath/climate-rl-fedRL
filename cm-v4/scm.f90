@@ -13,18 +13,18 @@ program main
     real(kind=c_double), dimension(dim1) :: f2py_redis
 
     integer :: status
-    logical :: compute_signal_found, reset_signal_found
+    logical :: compute_signal_found, start_signal_found
     type(client_type) :: client
-    character(len=20) :: signal_key_compute, signal_key_reset
+    character(len=20) :: signal_key_compute, signal_key_start
     integer :: wait_time
 
     ! Variables for temperature calculation
     real(8) :: u, current_temperature, new_temperature
     real(8) :: initial_temperature
 
-    ! Set the keys used to signal computation start and reset
+    ! Set the keys used to signal computation start and start
     signal_key_compute = "SIGCOMPUTE"
-    signal_key_reset = "SIGRESET"
+    signal_key_start = "SIGSTART"
     wait_time = 0.1  ! seconds to wait between checks
 
     ! Initialize the current temperature (300 - 273.15) / 100
@@ -35,20 +35,20 @@ program main
     status = client%initialize(.false.)
     if (status .ne. SRNoError) error stop 'client%initialize failed'
 
-    print *, "Waiting for computation or reset signal..."
+    print *, "Waiting for computation or start signal..."
 
     ! Main loop to continuously wait for signals and perform actions
     do
        ! Check if the computation signal exists in Redis
        status = client%tensor_exists(signal_key_compute, compute_signal_found)
 
-       ! Check if the reset signal exists in Redis
-       status = client%tensor_exists(signal_key_reset, reset_signal_found)
+       ! Check if the start signal exists in Redis
+       status = client%tensor_exists(signal_key_start, start_signal_found)
 
-       ! If reset signal is found, reset the temperature to its initial value
-       if (reset_signal_found) then
-          print *, "Reset signal received. Resetting temperature..."
-          f2py_redis(1) = initial_temperature  ! Store the reset result
+       ! If start signal is found, start the temperature to its initial value
+       if (start_signal_found) then
+          print *, "Start signal received. Resetting temperature..."
+          f2py_redis(1) = initial_temperature  ! Store the start result
           current_temperature = initial_temperature  ! Reset the temperature
 
           print *, 'The value of f2py_redis is: ', f2py_redis
@@ -59,9 +59,9 @@ program main
 
           print *, "Reset done. Result sent to Redis."
 
-          ! Delete the reset signal after processing it
-          status = client%delete_tensor(signal_key_reset)
-          if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGRESET'
+          ! Delete the start signal after processing it
+          status = client%delete_tensor(signal_key_start)
+          if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGSTART'
 
           print *, "Temperature reset to initial value. Waiting for the next signal..."
 
@@ -97,7 +97,7 @@ program main
           status = client%delete_tensor(signal_key_compute)
           if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGCOMPUTE'
 
-          print *, "Computation signal reset. Waiting for the next signal..."
+          print *, "Computation signal start. Waiting for the next signal..."
 
        end if
 
