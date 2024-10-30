@@ -1,4 +1,5 @@
 import os
+import time
 
 import gymnasium as gym
 import numpy as np
@@ -53,7 +54,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         if self.REDIS_ADDRESS is None:
             raise EnvironmentError("SSDB environment variable is not set.")
         self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
-        print(f"Connected to Redis server: {self.REDIS_ADDRESS}")
+        print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
 
         self.reset(self.seed)
 
@@ -87,6 +88,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
                 new_temperature = self.redis.get_tensor(
                     f"f2py_redis_s{self.seed}"
                 )[0]
+                time.sleep(0.01)
                 self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
             else:
                 continue  # Wait for the computation to complete
@@ -129,6 +131,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
                 initial_temperature = self.redis.get_tensor(
                     f"f2py_redis_s{self.seed}"
                 )[0]
+                time.sleep(0.25)
                 self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
             else:
                 continue  # Wait for the computation to complete

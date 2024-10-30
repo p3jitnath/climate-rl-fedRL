@@ -13,7 +13,7 @@ program main
     real(kind=c_double), dimension(dim1) :: f2py_redis
 
     integer :: status
-    logical :: compute_signal_found, start_signal_found
+    logical :: compute_signal_found, start_signal_found, compute_data_found
     type(client_type) :: client
     character(len=20) :: k_sigcompute, k_sigstart, k_f2py, k_py2f, cmd_seed
     integer :: wait_time, seed
@@ -41,7 +41,7 @@ program main
     write(k_f2py,'("f2py_redis_s", i0)') seed
     write(k_py2f,'("py2f_redis_s", i0)') seed
 
-    wait_time = 0.1 ! seconds to wait between checks
+    wait_time = 0.01 ! seconds to wait between checks
 
     ! Initialize the current temperature (300 - 273.15) / 100
     initial_temperature = (300.0d0 - 273.15d0) / 100.0d0
@@ -61,6 +61,9 @@ program main
         ! Check if the start signal exists in Redis
         status = client%tensor_exists(k_sigstart, start_signal_found)
 
+        ! Check if the compute data exists in Redis
+        status = client%tensor_exists(k_py2f, compute_data_found)
+
         ! If start signal is found, start the temperature to its initial value
         if (start_signal_found) then
             print *, "Start signal received. Resetting temperature..."
@@ -76,20 +79,22 @@ program main
             print *, "Reset done. Result sent to Redis."
 
             ! Delete the start signal after processing it
+            call sleep(wait_time)
             status = client%delete_tensor(k_sigstart)
             if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGSTART'
 
             print *, "Temperature reset to initial value. Waiting for the next signal..."
 
         ! If computation signal is found, perform the computation
-        else if (compute_signal_found) then
-            print *, "Computation signal received. Starting computation..."
+        else if (compute_signal_found .and. compute_data_found) then
+            print *, "Computation signal and data received. Starting computation..."
 
             ! Retrieve the heating increment (u) from Redis into "py2f_redis"
             status = client%unpack_tensor(k_py2f, py2f_redis, shape(py2f_redis))
             if (status .ne. SRNoError) error stop 'client%unpack_tensor failed'
 
             ! Reset the heating increment (u) after processing it
+            call sleep(wait_time)
             status = client%delete_tensor(k_py2f)
             if (status .ne. SRNoError) error stop 'client%delete_tensor failed for py2f_redis'
 
@@ -110,10 +115,11 @@ program main
             print *, "Computation done. Result sent to Redis."
 
             ! Reset the computation signal after processing it
+            call sleep(wait_time)
             status = client%delete_tensor(k_sigcompute)
             if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGCOMPUTE'
 
-            print *, "Computation signal start. Waiting for the next signal..."
+            print *, "Computation signal reset. Waiting for the next signal..."
 
         end if
 

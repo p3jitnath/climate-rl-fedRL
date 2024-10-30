@@ -190,9 +190,9 @@ torch.backends.cudnn.deterministic = args.torch_deterministic
 device = torch.device(
     "cuda" if torch.cuda.is_available() and args.cuda else "cpu"
 )
-print(f"device: {device}")
-print(f"actor layer size: {args.actor_layer_size}")
-print(f"critic layer size: {args.critic_layer_size}")
+print(f"device: {device}", flush=True)
+print(f"actor layer size: {args.actor_layer_size}", flush=True)
+print(f"critic layer size: {args.critic_layer_size}", flush=True)
 
 # 0. env setup
 envs = gym.vector.SyncVectorEnv(
@@ -246,18 +246,22 @@ if args.flwr_client is not None:
             if self.REDIS_ADDRESS is None:
                 raise EnvironmentError("SSDB environment variable is not set.")
             self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
-            print(f"Connected to Redis server: {self.REDIS_ADDRESS}")
+            print(
+                f"[RL Agent] Connected to Redis server: {self.REDIS_ADDRESS}",
+                flush=True,
+            )
 
         # load the latest actor weights from Redis
         def load_actor_weights(self):
-            print("loading actor weights in DDPG client", flush=True)
             # Wait for signal that weights are available
-            while not self.redis.tensor_exists(f"SIGWEIGHTS_G2C_S{args.seed}"):
+            while not self.redis.tensor_exists(
+                f"actor_network_weights_g2c_s{args.seed}"
+            ):
                 pass
 
             # Retrieve and reshape weights tensor based on Actor's structure
             weights = self.redis.get_tensor(
-                f"actor_network_weights_s{args.seed}"
+                f"actor_network_weights_g2c_s{args.seed}"
             )
             offset = 0
 
@@ -273,26 +277,18 @@ if args.flwr_client is not None:
                 offset += size
 
             # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(f"actor_network_weights_s{args.seed}")
-            self.redis.delete_tensor(f"SIGWEIGHTS_G2C_S{args.seed}")
+            self.redis.delete_tensor(f"actor_network_weights_g2c_s{args.seed}")
 
         # save updated weights to Redis
         def save_actor_weights(self):
-            print("saving actor weights in DDPG client", flush=True)
             weights = np.concatenate(
                 [
                     param.data.cpu().numpy().flatten()
                     for param in self.actor.parameters()
                 ]
             )
-
-            # print(weights)
-
             self.redis.put_tensor(
-                f"actor_network_weights_s{args.seed}", weights
-            )
-            self.redis.put_tensor(
-                f"SIGWEIGHTS_C2G_S{args.seed}", np.array([1], dtype=np.int32)
+                f"actor_network_weights_c2g_s{args.seed}", weights
             )
 
     fedRL = FedRL(actor, args.flwr_client)
@@ -331,7 +327,8 @@ for global_step in range(1, args.total_timesteps + 1):
     if "final_info" in infos:
         for info in infos["final_info"]:
             print(
-                f"global_step={global_step}, episodic_return={info['episode']['r']}"
+                f"seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
+                flush=True,
             )
             writer.add_scalar(
                 "charts/episodic_return", info["episode"]["r"], global_step
