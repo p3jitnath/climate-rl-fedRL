@@ -44,7 +44,8 @@ program main
     wait_time = 0.01 ! seconds to wait between checks
 
     ! Initialize the current temperature (300 - 273.15) / 100
-    initial_temperature = (300.0d0 - 273.15d0) / 100.0d0
+    ! Supports 8 different seeds 0-7 (inclusive)
+    initial_temperature = (300.0d0 + 10*seed - 273.15d0) / 100.0d0
     current_temperature = initial_temperature
 
     ! Initialize the Redis client

@@ -55,6 +55,9 @@ cover/
 *.mo
 *.pot
 
+# Compiled output
+*.o
+
 # Django stuff:
 *.log
 local_settings.py
