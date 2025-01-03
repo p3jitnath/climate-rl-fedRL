@@ -22,7 +22,7 @@ from torch.utils.tensorboard import SummaryWriter
 CLIMATE_RL_BASE_DIR = (
     "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/climate-rl"
 )
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v5"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 sys.path.append(CLIMATE_RL_BASE_DIR)
 sys.path.append(BASE_DIR)
 
@@ -240,6 +240,8 @@ if args.flwr_client is not None:
         def __init__(self, actor, flwr_client):
             self.actor = actor
             self.flwr_client = flwr_client
+            self.new_rb_entries = []
+            self.global_rb = None
 
             # SmartRedis setup
             self.REDIS_ADDRESS = os.getenv("SSDB")
@@ -263,8 +265,11 @@ if args.flwr_client is not None:
             weights = self.redis.get_tensor(
                 f"actor_network_weights_g2c_s{args.seed}"
             )
+            # print('[RL Agent]', args.seed, 'L', weights[0:5], flush=True)
 
-            # print(weights)
+            old_params = [
+                param.clone().detach() for param in self.actor.parameters()
+            ]
 
             offset = 0
             for param in self.actor.parameters():
@@ -275,6 +280,12 @@ if args.flwr_client is not None:
                     )
                 )
                 offset += size
+
+            diff_norm = sum(
+                torch.norm(old - new)
+                for old, new in zip(old_params, self.actor.parameters())
+            )
+            print(f"[RL Agent] norm: {diff_norm}")
 
             # Clear weights and signal to reset for the next round
             self.redis.delete_tensor(f"actor_network_weights_g2c_s{args.seed}")
@@ -290,13 +301,36 @@ if args.flwr_client is not None:
             self.redis.put_tensor(
                 f"actor_network_weights_c2g_s{args.seed}", weights
             )
+            # print('[RL Agent]', args.seed, 'S', weights[0:5], flush=True)
+
+        # load the current global replay buffer from Redis
+        def load_replay_buffer(self):
+            # Wait for signal that aggregatd replay buffer is available
+            while not self.redis.tensor_exists("replay_buffer_global"):
+                pass
+
+            # Retrieve the global replay buffer tensor
+            self.global_rb = self.redis.get_tensor("replay_buffer_global")
+            self.global_rb = pickle.loads(self.global_rb.tobytes())
+
+        # save the new replay buffer entries to Redis
+        def save_new_replay_buffer_entries(self):
+            self.redis.put_tensor(
+                f"new_replay_buffer_entries_c2g_s{args.seed}",
+                np.frombuffer(
+                    pickle.dumps(self.new_rb_entries), dtype=np.uint8
+                ),
+            )
+            self.new_rb_entries = []
 
     fedRL = FedRL(actor, args.flwr_client)
 
     # save the current initial actor weights when using federated learning
+    # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
     fedRL.save_actor_weights()
 
     # load the new actor weights from the global server
+    # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
     fedRL.load_actor_weights()
 
 # 1. start the game
@@ -344,6 +378,10 @@ for global_step in range(1, args.total_timesteps + 1):
         if trunc:
             real_next_obs[idx] = infos["final_observation"][idx]
     rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+    if args.flwr_client is not None:
+        fedRL.new_rb_entries.append(
+            [obs, real_next_obs, actions, rewards, terminations, infos]
+        )
 
     obs = next_obs
 
@@ -410,10 +448,27 @@ for global_step in range(1, args.total_timesteps + 1):
     if args.flwr_client is not None and "final_info" in infos:
         for info in infos["final_info"]:
             # save the current actor weights when using federated learning
+            # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
             fedRL.save_actor_weights()
 
+            # send the new replay buffer additions to the global server
+            # print('[RL Agent]', args.seed, "saving new local replay buffer entries", flush=True)
+            fedRL.save_new_replay_buffer_entries()
+
             # load the new actor weights from the global server
+            # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
             fedRL.load_actor_weights()
+
+            # load the aggregated new replay buffer
+            # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)
+            fedRL.load_replay_buffer()
+
+            # add the samples to the local replay buffer
+            rb.reset()
+            for sample in fedRL.global_rb:
+                rb.add(*sample)
+            # print('[RL Agent]', args.seed, "rb size:", rb.size())
+
             break
 
     if global_step == args.total_timesteps:

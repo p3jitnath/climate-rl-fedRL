@@ -28,4 +28,4 @@ else
 fi
 
 # 1. Run flwr
-python flwr_main.py --num_clients 8
+# python flwr_main.py --num_clients 5

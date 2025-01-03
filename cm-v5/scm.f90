@@ -45,7 +45,7 @@ program main
 
     ! Initialize the current temperature (300 - 273.15) / 100
     ! Supports 8 different seeds 0-7 (inclusive)
-    initial_temperature = (300.0d0 + 10*seed - 273.15d0) / 100.0d0
+    initial_temperature = (300.0d0 + 10*(seed - 1) - 273.15d0) / 100.0d0
     current_temperature = initial_temperature
 
     ! Initialize the Redis client
