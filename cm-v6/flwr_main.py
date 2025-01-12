@@ -111,7 +111,7 @@ def main():
         strategy=strategy,
         ray_init_args={"num_cpus": total_cpus, "num_gpus": total_gpus},
         client_resources={"num_cpus": 1, "num_gpus": 0},  # "num_gpus": 0.25},
-        config=fl.server.ServerConfig(num_rounds=10),
+        config=fl.server.ServerConfig(num_rounds=1000),
     )
 
 

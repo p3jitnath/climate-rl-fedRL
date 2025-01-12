@@ -1,7 +1,7 @@
 import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
-RL_ALGO = "ddpg"
+RL_ALGO = "avg"
 ENV_ID = "RadiativeConvectiveModel-v0"
 EPISODE_LENGTH = 500
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
@@ -43,7 +43,7 @@ class FlowerClient(fl.client.NumPyClient):
             flush=True,
         )
 
-        cmd = f"""python -u {BASE_DIR}/rl-algos/ddpg/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
+        cmd = f"""python -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
         cmd += f"--flwr_client {self.cid} --seed {self.seed} "
         cmd += f"--actor_layer_size {self.actor_layer_size}"
         print(cmd, flush=True)
@@ -63,7 +63,10 @@ class FlowerClient(fl.client.NumPyClient):
 
         def make_env(env_id, seed):
             def thunk():
-                env = gym.make(env_id, seed=seed)
+                try:
+                    env = gym.make(env_id, seed=seed)
+                except TypeError:
+                    env = gym.make(env_id)
                 return env
 
             return thunk
@@ -138,7 +141,11 @@ class FlowerClient(fl.client.NumPyClient):
 
         # Retrieve the new replay buffer entries from Redis
         # print(config['server_round'], self.seed, "[Flwr Client] - loading new replay buffer entries", flush=True)
-        new_rb_entries = self.get_new_replay_buffer_entries()
+        new_rb_entries = (
+            self.get_new_replay_buffer_entries()
+            if RL_ALGO not in ["avg", "ppo", "trpo", "dpg"]
+            else {}
+        )
 
         return (
             updated_parameters,

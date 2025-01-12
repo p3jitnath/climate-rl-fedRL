@@ -14,9 +14,8 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
-from ddpg_actor import Actor
-from ddpg_critic import Critic
-from stable_baselines3.common.buffers import ReplayBuffer
+from avg_actor import Actor
+from avg_critic import Critic
 from torch.utils.tensorboard import SummaryWriter
 
 CLIMATE_RL_BASE_DIR = (
@@ -24,7 +23,6 @@ CLIMATE_RL_BASE_DIR = (
 )
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 sys.path.append(CLIMATE_RL_BASE_DIR)
-sys.path.append(BASE_DIR)
 
 from param_tune.utils.no_op_summary_writer import NoOpSummaryWriter
 from smartredis import Client
@@ -36,7 +34,7 @@ date = time.strftime("%Y-%m-%d", time.gmtime(time.time()))
 
 @dataclass
 class Args:
-    exp_name: str = "ddpg_torch"
+    exp_name: str = "avg_torch"
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
@@ -61,24 +59,14 @@ class Args:
     """the environment id of the environment"""
     total_timesteps: int = 60000
     """total timesteps of the experiments"""
-    learning_rate: float = 3e-4
-    """the learning rate of the optimizer"""
-    buffer_size: int = int(1e6)
-    """the replay memory buffer size"""
+    actor_adam_lr: float = 3e-4
+    """the learning rate of the policy network optimizer"""
+    critic_adam_lr: float = 3e-4
+    """the learning rate of the Q network optimizer"""
+    alpha_lr: float = 3e-4
+    """the learning rate to tune entropy coefficient"""
     gamma: float = 0.99
     """the discount factor gamma"""
-    tau: float = 0.005
-    """target smoothing coefficient (default: 0.005)"""
-    batch_size: int = 256
-    """the batch size of sample from the replay memory"""
-    exploration_noise: float = 0.1
-    """the scale of exploration noise"""
-    learning_starts: int = 1000
-    """timestep to start learning"""
-    policy_frequency: int = 2
-    """the frequency of training policy (delayed)"""
-    noise_clip: float = 0.5
-    """noise clip parameter of the Target Policy Smoothing Regularization"""
 
     optimise: bool = False
     """whether to modify output for hyperparameter optimisation"""
@@ -149,6 +137,8 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
             except TypeError:
                 env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = gym.wrappers.FlattenObservation(env)
+        env = gym.wrappers.NormalizeObservation(env)
         env.action_space.seed(seed)
         return env
 
@@ -218,24 +208,12 @@ assert isinstance(
 ), "only continuous action space is supported"
 
 actor = Actor(envs, args.actor_layer_size).to(device)
-qf1 = Critic(envs, args.critic_layer_size).to(device)
-qf1_target = Critic(envs, args.critic_layer_size).to(device)
-target_actor = Actor(envs, args.actor_layer_size).to(device)
+qf = Critic(envs, args.critic_layer_size).to(device)
 
-target_actor.load_state_dict(actor.state_dict())
-qf1_target.load_state_dict(qf1.state_dict())
-
-q_optimizer = optim.Adam(list(qf1.parameters()), lr=args.learning_rate)
-actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
+actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.actor_adam_lr)
+qf_optimizer = optim.Adam(list(qf.parameters()), lr=args.critic_adam_lr)
 
 envs.single_observation_space.dtype = np.float32
-rb = ReplayBuffer(
-    args.buffer_size,
-    envs.single_observation_space,
-    envs.single_action_space,
-    device,
-    handle_timeout_termination=False,
-)
 
 start_time = time.time()
 
@@ -309,26 +287,6 @@ if args.flwr_client is not None:
             )
             # print('[RL Agent]', args.seed, 'S', weights[0:5], flush=True)
 
-        # load the current global replay buffer from Redis
-        def load_replay_buffer(self):
-            # Wait for signal that aggregatd replay buffer is available
-            while not self.redis.tensor_exists("replay_buffer_global"):
-                pass
-
-            # Retrieve the global replay buffer tensor
-            self.global_rb = self.redis.get_tensor("replay_buffer_global")
-            self.global_rb = pickle.loads(self.global_rb.tobytes())
-
-        # save the new replay buffer entries to Redis
-        def save_new_replay_buffer_entries(self):
-            self.redis.put_tensor(
-                f"new_replay_buffer_entries_c2g_s{args.seed}",
-                np.frombuffer(
-                    pickle.dumps(self.new_rb_entries), dtype=np.uint8
-                ),
-            )
-            self.new_rb_entries = []
-
     fedRL = FedRL(actor, args.flwr_client)
 
     # save the current initial actor weights when using federated learning
@@ -343,26 +301,13 @@ if args.flwr_client is not None:
 obs, _ = envs.reset(seed=args.seed)
 for global_step in range(1, args.total_timesteps + 1):
     # 2. retrieve action(s)
-    if global_step < args.learning_starts:
-        actions = np.array(
-            [envs.single_action_space.sample() for _ in range(envs.num_envs)]
-        )
-    else:
-        with torch.no_grad():
-            actions = actor(torch.Tensor(obs).to(device))
-            actions += torch.normal(
-                0, actor.action_scale * args.exploration_noise
-            )
-            actions = (
-                actions.cpu()
-                .numpy()
-                .clip(
-                    envs.single_action_space.low, envs.single_action_space.high
-                )
-            )
+    actions, action_info = actor(torch.Tensor(obs).to(device))
+    lprob = action_info["lprob"]
 
     # 3. execute the game and log data
-    next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+    next_obs, rewards, terminations, truncations, infos = envs.step(
+        actions.detach().cpu().numpy()
+    )
 
     if "final_info" in infos:
         for info in infos["final_info"]:
@@ -378,78 +323,54 @@ for global_step in range(1, args.total_timesteps + 1):
             )
             break
 
-    # 4. save data to replay buffer
-    real_next_obs = next_obs.copy()
-    for idx, trunc in enumerate(truncations):
-        if trunc:
-            real_next_obs[idx] = infos["final_observation"][idx]
-    rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
-    if args.flwr_client is not None:
-        fedRL.new_rb_entries.append(
-            [obs, real_next_obs, actions, rewards, terminations, infos]
+    # 5. training
+    # 5a. calculate the Q loss
+    qf_a_values = qf(
+        torch.Tensor(obs).to(device), actions.detach()
+    )  # N.B: Gradient should NOT pass through action here
+    with torch.no_grad():
+        next_actions, next_action_info = actor(
+            torch.Tensor(next_obs).to(device)
         )
+        next_lprob = next_action_info["lprob"]
+        qf_a_next_values = qf(torch.Tensor(next_obs).to(device), next_actions)
+        target_V = qf_a_next_values - args.alpha_lr * next_lprob
 
+    delta = (
+        torch.Tensor(rewards).to(device)
+        + (1 - torch.Tensor(terminations).to(device)) * args.gamma * target_V
+        - qf_a_values
+    )
+    qf_loss = delta**2
+
+    # 5b. update the critic
+    qf_optimizer.zero_grad()
+    qf_loss.backward()
+    qf_optimizer.step()
+
+    # 5c. update the actor network
+    actor_loss = args.alpha_lr * lprob - qf(
+        torch.Tensor(obs).to(device), actions
+    )  # N.B: USE reparametrized actions
+    actor_optimizer.zero_grad()
+    actor_loss.backward()
+    actor_optimizer.step()
+
+    # 5d. move to next observation
     obs = next_obs
 
-    # 5. training
-    if global_step > args.learning_starts:
-        # 5a. calculate the target_q_values to compare with
-        data = rb.sample(args.batch_size)
-        with torch.no_grad():
-            next_state_actions = target_actor(data.next_observations)
-            qf1_next_target = qf1_target(
-                data.next_observations, next_state_actions
-            )
-            target_q_values = data.rewards.flatten() + (
-                1 - data.dones.flatten()
-            ) * args.gamma * (qf1_next_target).view(-1)
-
-        qf1_a_values = qf1(data.observations, data.actions).view(-1)
-        qf1_loss = F.mse_loss(qf1_a_values, target_q_values)
-
-        # 5b. update the critic
-        q_optimizer.zero_grad()
-        qf1_loss.backward()
-        q_optimizer.step()
-
-        # 5c. update the actor network
-        if global_step % args.policy_frequency == 0:
-            actor_loss = -qf1(
-                data.observations, actor(data.observations)
-            ).mean()
-            actor_optimizer.zero_grad()
-            actor_loss.backward()
-            actor_optimizer.step()
-
-        # 5d. soft-update the target networks
-        if global_step % args.policy_frequency == 0:
-            for param, target_param in zip(
-                actor.parameters(), target_actor.parameters()
-            ):
-                target_param.data.copy_(
-                    args.tau * param.data + (1 - args.tau) * target_param.data
-                )
-            for param, target_param in zip(
-                qf1.parameters(), qf1_target.parameters()
-            ):
-                target_param.data.copy_(
-                    args.tau * param.data + (1 - args.tau) * target_param.data
-                )
-
-        if global_step % 100 == 0:
-            writer.add_scalar(
-                "losses/qf1_values", qf1_a_values.mean().item(), global_step
-            )
-            writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
-            writer.add_scalar(
-                "losses/actor_loss", actor_loss.item(), global_step
-            )
-            # print("SPS:", int(global_step / (time.time() - start_time)))
-            writer.add_scalar(
-                "charts/SPS",
-                int(global_step / (time.time() - start_time)),
-                global_step,
-            )
+    if global_step % 100 == 0:
+        writer.add_scalar(
+            "losses/qf_values", qf_a_values.mean().item(), global_step
+        )
+        writer.add_scalar("losses/qf_loss", qf_loss.item(), global_step)
+        writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
+        # print("SPS:", int(global_step / (time.time() - start_time)))
+        writer.add_scalar(
+            "charts/SPS",
+            int(global_step / (time.time() - start_time)),
+            global_step,
+        )
 
     if args.flwr_client is not None and "final_info" in infos:
         for info in infos["final_info"]:
@@ -457,23 +378,9 @@ for global_step in range(1, args.total_timesteps + 1):
             # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
             fedRL.save_actor_weights()
 
-            # send the new replay buffer additions to the global server
-            # print('[RL Agent]', args.seed, "saving new local replay buffer entries", flush=True)
-            fedRL.save_new_replay_buffer_entries()
-
             # load the new actor weights from the global server
             # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
             fedRL.load_actor_weights()
-
-            # load the aggregated new replay buffer
-            # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)
-            fedRL.load_replay_buffer()
-
-            # add the samples to the local replay buffer
-            rb.reset()
-            for sample in fedRL.global_rb:
-                rb.add(*sample)
-            # print('[RL Agent]', args.seed, "rb size:", rb.size())
 
             break
 

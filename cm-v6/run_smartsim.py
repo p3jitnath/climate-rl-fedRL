@@ -7,7 +7,7 @@ from smartsim.status import SmartSimStatus
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 # SCM_EXECUTABLE = "scm.o"
 FLWR_SCRIPT = "flwr_main.py"
-SEEDS = [x for x in range(2)]  # Add more seeds here if needed
+SEEDS = [x for x in range(16)]  # Add more seeds here if needed
 
 
 def get_redis_port():
