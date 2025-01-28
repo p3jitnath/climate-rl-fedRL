@@ -27,5 +27,5 @@ else
   echo "No keys found matching pattern 'actor*'."
 fi
 
-# 1. Run flwr
-# python flwr_main.py --num_clients 5
+# 1. Run smartsim
+python run_smartsim.py

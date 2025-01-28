@@ -5,9 +5,9 @@ from smartsim import Experiment
 from smartsim.status import SmartSimStatus
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
-# SCM_EXECUTABLE = "scm.o"
+SCM_EXECUTABLE = "f2py-climate-envs/f2py_climate_envs/envs/scm.o"
 FLWR_SCRIPT = "flwr_main.py"
-SEEDS = [x for x in range(16)]  # Add more seeds here if needed
+SEEDS = [x for x in range(8)]  # Add more seeds here if needed
 
 
 def get_redis_port():
@@ -61,16 +61,16 @@ def main():
     print(f"Redis Database started on port {redis_port}.", flush=True)
 
     # Start SCM processes with different seeds
-    # scm_models = []
-    # for seed in SEEDS:
-    #     model = create_and_start_model(
-    #         exp,
-    #         f"SCM_Seed_{seed}",
-    #         f"{BASE_DIR}/{SCM_EXECUTABLE}",
-    #         [str(seed)],
-    #         block=False,
-    #     )
-    #     scm_models.append(model)
+    scm_models = []
+    for seed in SEEDS:
+        model = create_and_start_model(
+            exp,
+            f"SCM_Seed_{seed}",
+            f"{BASE_DIR}/{SCM_EXECUTABLE}",
+            [str(seed)],
+            block=False,
+        )
+        scm_models.append(model)
 
     # Start FLWR orchestrator
     flwr_model = create_and_start_model(

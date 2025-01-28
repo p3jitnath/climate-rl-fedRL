@@ -2,8 +2,8 @@ import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 RL_ALGO = "avg"
-ENV_ID = "RadiativeConvectiveModel-v0"
-EPISODE_LENGTH = 500
+ENV_ID = "SimpleClimateBiasCorrection-v0"
+EPISODE_LENGTH = 200
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
 
 
