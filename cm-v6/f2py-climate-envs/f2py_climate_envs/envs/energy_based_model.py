@@ -65,11 +65,11 @@ class Utils:
         dim=("lon", "time")
     )
 
-    A = 210
-    B = 2
-    a0 = 0.354
-    a2 = 0.25
-    nMonthDays = 30
+    a0_fixed = 0.354
+    a2_fixed = 0.25
+    D_fixed = 0.6
+    A_fixed = 2.1
+    B_fixed = 2
 
 
 class EnergyBasedModelEnv(gym.Env):
@@ -79,29 +79,40 @@ class EnergyBasedModelEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode=None, locale="uk"):
-        self.min_D = 0  # no heat transport
-        self.max_D = 2  # perfect heat transport
+    def __init__(self, render_mode=None, std=1):
+
+        self.utils = Utils()
+
+        self.std = std
+
+        self.min_D = self.utils.D_fixed * (1 - self.std)
+        self.max_D = self.utils.D_fixed * (1 + self.std)
+
+        self.min_A = self.utils.A_fixed * (1 - self.std)
+        self.max_A = self.utils.A_fixed * (1 + self.std)
+
+        self.min_B = self.utils.B_fixed
+        self.max_B = self.utils.B_fixed
+
+        self.min_a0 = self.utils.a0_fixed * (1 - self.std)
+        self.max_a0 = self.utils.a0_fixed * (1 + self.std)
+
+        self.min_a2 = self.utils.a2_fixed * (1 - self.std)
+        self.max_a2 = self.utils.a2_fixed * (1 + self.std)
 
         self.min_temperature = -90
         self.max_temperature = 90
 
-        self.utils = Utils()
-
         self.action_space = spaces.Box(
             low=np.array(
-                [
-                    self.min_D,
-                ],
+                [self.min_D, self.min_A, self.min_B, self.min_a0, self.min_a2],
                 dtype=np.float32,
             ),
             high=np.array(
-                [
-                    self.max_D,
-                ],
+                [self.max_D, self.max_A, self.max_B, self.max_a0, self.max_a2],
                 dtype=np.float32,
             ),
-            shape=(1,),
+            shape=(5,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
@@ -134,7 +145,12 @@ class EnergyBasedModelEnv(gym.Env):
 
     def _get_params(self):
         D = self.ebm.subprocess["diffusion"].D
-        params = np.array([D], dtype=np.float32)
+        A, B = self.ebm.subprocess["LW"].A / 1e2, self.ebm.subprocess["LW"].B
+        a0, a2 = (
+            self.ebm.subprocess["albedo"].a0,
+            self.ebm.subprocess["albedo"].a2,
+        )
+        params = np.array([D, A, B, a0, a2], dtype=np.float32)
         return params
 
     def _get_state(self):
@@ -142,18 +158,29 @@ class EnergyBasedModelEnv(gym.Env):
         return state
 
     def step(self, action):
-        D = action[0]
+        D, A, B, a0, a2 = action[0], action[1], action[2], action[3], action[4]
         D = np.clip(D, self.min_D, self.max_D)
+        A = np.clip(A, self.min_A, self.max_A)
+        B = np.clip(B, self.min_B, self.max_B)
+        a0 = np.clip(a0, self.min_a0, self.max_a0)
+        a2 = np.clip(a2, self.min_a2, self.max_a2)
 
         self.ebm.subprocess["diffusion"].D = D
+        self.ebm.subprocess["LW"].A = A * 1e2
+        self.ebm.subprocess["LW"].B = B
+        self.ebm.subprocess["albedo"].a0 = a0
+        self.ebm.subprocess["albedo"].a2 = a2
 
-        self.ebm.integrate_days(self.utils.nMonthDays, verbose=False)
-        self.climlab_ebm.integrate_days(self.utils.nMonthDays, verbose=False)
+        self.ebm.step_forward()
+        self.climlab_ebm.step_forward()
 
-        Tprofile = self._get_temp()
         costs = np.mean(
-            (Tprofile - self.utils.Ts_ncep_annual.values[::-1]) ** 2
-        )
+            (
+                np.array(self.ebm.Ts.reshape(-1))
+                - self.utils.Ts_ncep_annual.values[::-1]
+            )[15:-15]
+            ** 2
+        )  # Discard poles
 
         self.state = self._get_state()
 
@@ -162,13 +189,15 @@ class EnergyBasedModelEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.ebm = climlab.EBM_annual(
-            A=self.utils.A,
-            B=self.utils.B,
-            a0=self.utils.a0,
-            a2=self.utils.a2,
+            a0=self.utils.a0_fixed,
+            a2=self.utils.a2_fixed,
+            D=self.utils.D_fixed,
+            A=self.utils.A_fixed * 1e2,
+            B=self.utils.B_fixed,
             num_lat=len(self.utils.lat_ncep),
             name="EBM Model w/ RL",
         )
+        self.ebm.Ts[:] = 50.0
 
         # Initialize a climlab EBM model clone
         self.climlab_ebm = climlab.process_like(self.ebm)
@@ -186,17 +215,17 @@ class EnergyBasedModelEnv(gym.Env):
         # Left subplot: diffusivity as bar plot
         ax1 = fig.add_subplot(gs[0, 0])
 
-        ax1_labels = [
-            "D",
-        ]
+        ax1_labels = ["D", "A", "B", "a0", "a2"]
         ax1_colors = [
+            "tab:blue",
+            "tab:blue",
+            "tab:blue",
+            "tab:blue",
             "tab:blue",
         ]
         ax1_bars = ax1.bar(
             ax1_labels,
-            [
-                params[0],
-            ],
+            [*params],
             color=ax1_colors,
             width=0.75,
         )
@@ -218,8 +247,8 @@ class EnergyBasedModelEnv(gym.Env):
 
         # Middle subplot: Temperature v/s Latitude
         ax2 = fig.add_subplot(gs[0, 1])
-        ax2.plot(self.ebm.lat, self.ebm.Ts, label="RCE Model w/ RL")
-        ax2.plot(self.climlab_ebm.lat, self.climlab_ebm.Ts, label="RCE Model")
+        ax2.plot(self.ebm.lat, self.ebm.Ts, label="EBM Model w/ RL")
+        ax2.plot(self.climlab_ebm.lat, self.climlab_ebm.Ts, label="EBM Model")
         ax2.plot(
             self.utils.lat_ncep,
             self.utils.Ts_ncep_annual,
@@ -241,7 +270,7 @@ class EnergyBasedModelEnv(gym.Env):
                 self.ebm.Ts.reshape(-1)
                 - self.utils.Ts_ncep_annual.values[::-1]
             ),
-            label="RCE Model w/ RL",
+            label="EBM Model w/ RL",
         )
         ax3.bar(
             x=self.climlab_ebm.lat,
@@ -249,7 +278,7 @@ class EnergyBasedModelEnv(gym.Env):
                 self.climlab_ebm.Ts.reshape(-1)
                 - self.utils.Ts_ncep_annual.values[::-1]
             ),
-            label="RCE Model",
+            label="EBM Model",
             zorder=-1,
         )
         ax3.set_ylabel("Error  (°C)")

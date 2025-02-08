@@ -19,5 +19,5 @@ register(
 register(
     id="EnergyBasedModel-v0",
     entry_point="f2py_climate_envs.envs:EnergyBasedModelEnv",
-    max_episode_steps=250,
+    max_episode_steps=200,
 )
