@@ -83,34 +83,58 @@ class EnergyBasedModelEnv(gym.Env):
 
         self.utils = Utils()
 
-        self.min_D = 0
-        self.max_D = 1.2
+        self.min_D = 0.55
+        self.max_D = 0.65
 
-        self.min_A = 0
+        self.min_A = 1.4
         self.max_A = 4.2
 
         self.min_B = 1.95
         self.max_B = 2.05
 
-        self.min_a0 = 0
-        self.max_a0 = 0.708
+        self.min_a0 = 0.3
+        self.max_a0 = 0.4
 
-        self.min_a2 = 0
-        self.max_a2 = 0.5
+        self.min_a2 = 0.2
+        self.max_a2 = 0.3
 
         self.min_temperature = -90
         self.max_temperature = 90
 
         self.action_space = spaces.Box(
             low=np.array(
-                [self.min_D, self.min_A, self.min_B, self.min_a0, self.min_a2],
+                [
+                    self.min_D,
+                    *[
+                        self.min_A
+                        for x in range(len(self.utils.Ts_ncep_annual))
+                    ],
+                    *[
+                        self.min_B
+                        for x in range(len(self.utils.Ts_ncep_annual))
+                    ],
+                    self.min_a0,
+                    self.min_a2,
+                ],
                 dtype=np.float32,
             ),
             high=np.array(
-                [self.max_D, self.max_A, self.max_B, self.max_a0, self.max_a2],
+                [
+                    self.max_D,
+                    *[
+                        self.max_A
+                        for x in range(len(self.utils.Ts_ncep_annual))
+                    ],
+                    *[
+                        self.max_B
+                        for x in range(len(self.utils.Ts_ncep_annual))
+                    ],
+                    self.max_a0,
+                    self.max_a2,
+                ],
                 dtype=np.float32,
             ),
-            shape=(5,),
+            shape=(3 + 2 * len(self.utils.Ts_ncep_annual),),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
@@ -148,7 +172,9 @@ class EnergyBasedModelEnv(gym.Env):
             self.ebm.subprocess["albedo"].a0,
             self.ebm.subprocess["albedo"].a2,
         )
-        params = np.array([D, A, B, a0, a2], dtype=np.float32)
+        params = np.array(
+            [D, *(A.reshape(-1)), *(B.reshape(-1)), a0, a2], dtype=np.float32
+        )
         return params
 
     def _get_state(self):
@@ -156,7 +182,11 @@ class EnergyBasedModelEnv(gym.Env):
         return state
 
     def step(self, action):
-        D, A, B, a0, a2 = action[0], action[1], action[2], action[3], action[4]
+        D, a0, a2 = action[0], action[-2], action[-1]
+        split_idx = 1 + len(self.utils.Ts_ncep_annual)
+        A = np.array(action[1:split_idx]).reshape(-1, 1)
+        B = np.array(action[split_idx:-2]).reshape(-1, 1)
+
         D = np.clip(D, self.min_D, self.max_D)
         A = np.clip(A, self.min_A, self.max_A)
         B = np.clip(B, self.min_B, self.max_B)
@@ -176,9 +206,9 @@ class EnergyBasedModelEnv(gym.Env):
             (
                 np.array(self.ebm.Ts.reshape(-1))
                 - self.utils.Ts_ncep_annual.values[::-1]
-            )[15:-15]
+            )
             ** 2
-        )  # Discard poles
+        )
 
         self.state = self._get_state()
 
@@ -190,8 +220,18 @@ class EnergyBasedModelEnv(gym.Env):
             a0=self.utils.a0_ref,
             a2=self.utils.a2_ref,
             D=self.utils.D_ref,
-            A=self.utils.A_ref * 1e2,
-            B=self.utils.B_ref,
+            A=np.array(
+                [
+                    self.utils.A_ref * 1e2
+                    for x in range(len(self.utils.Ts_ncep_annual))
+                ]
+            ).reshape(-1, 1),
+            B=np.array(
+                [
+                    self.utils.B_ref
+                    for x in range(len(self.utils.Ts_ncep_annual))
+                ]
+            ).reshape(-1, 1),
             num_lat=len(self.utils.lat_ncep),
             name="EBM Model w/ RL",
         )
@@ -223,7 +263,12 @@ class EnergyBasedModelEnv(gym.Env):
         ]
         ax1_bars = ax1.bar(
             ax1_labels,
-            [*params],
+            [
+                params[0],
+                np.mean(params[1 : len(self.utils.Ts_ncep_annual) + 1]),
+                np.mean(params[len(self.utils.Ts_ncep_annual) + 1 : -2]),
+                *params[-2:],
+            ],
             color=ax1_colors,
             width=0.75,
         )
