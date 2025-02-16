@@ -101,6 +101,8 @@ class Args:
 
     flwr_client: Optional[int] = None
     """flwr client id for Federated Learning"""
+    flwr_episodes: int = 5
+    """the number of episodes after each flwr update"""
 
     def __post_init__(self):
         if self.flwr_client is not None:
@@ -454,30 +456,31 @@ for global_step in range(1, args.total_timesteps + 1):
             )
 
     if args.flwr_client is not None and "final_info" in infos:
-        for info in infos["final_info"]:
-            # save the current actor weights when using federated learning
-            # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
-            fedRL.save_actor_weights()
+        if global_step % (args.flwr_episodes * args.num_steps) == 0:
+            for info in infos["final_info"]:
+                # save the current actor weights when using federated learning
+                # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
+                fedRL.save_actor_weights()
 
-            # send the new replay buffer additions to the global server
-            # print('[RL Agent]', args.seed, "saving new local replay buffer entries", flush=True)
-            fedRL.save_new_replay_buffer_entries()
+                # send the new replay buffer additions to the global server
+                # print('[RL Agent]', args.seed, "saving new local replay buffer entries", flush=True)
+                # fedRL.save_new_replay_buffer_entries()
 
-            # load the new actor weights from the global server
-            # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
-            # fedRL.load_actor_weights()
+                # load the new actor weights from the global server
+                # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
+                fedRL.load_actor_weights()
 
-            # load the aggregated new replay buffer
-            # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)
-            # fedRL.load_replay_buffer()
+                # load the aggregated new replay buffer
+                # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)
+                # fedRL.load_replay_buffer()
 
-            # add the samples to the local replay buffer
-            # rb.reset()
-            # for sample in fedRL.global_rb:
-            #     rb.add(*sample)
-            # print('[RL Agent]', args.seed, "rb size:", rb.size())
+                # add the samples to the local replay buffer
+                # rb.reset()
+                # for sample in fedRL.global_rb:
+                #     rb.add(*sample)
+                # print('[RL Agent]', args.seed, "rb size:", rb.size())
 
-            break
+                break
 
     if global_step == args.total_timesteps:
         if args.write_to_file:

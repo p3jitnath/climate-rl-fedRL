@@ -145,7 +145,7 @@ class EnergyBasedModelEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=self.min_temperature,
             high=self.max_temperature,
-            shape=(len(self.utils.lat_ncep),),
+            shape=(len(self.utils.Ts_ncep_annual),),
             dtype=np.float32,
         )
 
@@ -157,7 +157,7 @@ class EnergyBasedModelEnv(gym.Env):
         self.reset()
 
     def _get_obs(self):
-        return self._get_temp()
+        return self._get_state()
 
     def _get_temp(self, model="RL"):
         if model == "RL":
@@ -206,9 +206,6 @@ class EnergyBasedModelEnv(gym.Env):
 
         self.ebm.step_forward()
         self.climlab_ebm.step_forward()
-        self.Ts_ncep_annual = self.utils.Ts_ncep_annual.interp(
-            lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-        )
 
         costs = (
             np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values
@@ -240,6 +237,9 @@ class EnergyBasedModelEnv(gym.Env):
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0
+        self.Ts_ncep_annual = self.utils.Ts_ncep_annual.interp(
+            lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
+        )
 
         # Initialize a climlab EBM model clone
         self.climlab_ebm = climlab.process_like(self.ebm)

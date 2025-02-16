@@ -58,7 +58,7 @@ def main():
     redis_port = get_redis_port()
     redis_model = exp.create_database(port=redis_port, interface="lo")
     exp.start(redis_model)
-    print(f"Redis Database started on port {redis_port}.", flush=True)
+    print(f"Redis database started on port {redis_port}.", flush=True)
 
     # Start SCM processes with different seeds
     # scm_models = []

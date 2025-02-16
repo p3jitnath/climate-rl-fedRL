@@ -3,6 +3,7 @@
 # 0. Perform cleanup
 # Stop all pending ray processes
 ray stop --force
+rm -rf FLWR_Orchestrator
 
 # Check for keys matching "SIG*" pattern in Redis on port 6380
 sig_keys=$(redis-cli -p 6380 KEYS "SIG*")

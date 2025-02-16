@@ -142,11 +142,12 @@ class FlowerClient(fl.client.NumPyClient):
 
         # Retrieve the new replay buffer entries from Redis
         # print(config['server_round'], self.seed, "[Flwr Client] - loading new replay buffer entries", flush=True)
-        new_rb_entries = (
-            self.get_new_replay_buffer_entries()
-            if RL_ALGO not in ["avg", "ppo", "trpo", "dpg"]
-            else {}
-        )
+        # new_rb_entries = (
+        #     self.get_new_replay_buffer_entries()
+        #     if RL_ALGO not in ["avg", "ppo", "trpo", "dpg"]
+        #     else {}
+        # )
+        new_rb_entries = []
 
         return (
             updated_parameters,

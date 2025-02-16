@@ -18,7 +18,7 @@ class Utils:
     fp_ulwrf = f"{DATASETS_DIR}/ulwrf.ntat.mon.1981-2010.ltm.nc"
     fp_dswrf = f"{DATASETS_DIR}/dswrf.ntat.mon.1981-2010.ltm.nc"
     fp_uswrf = f"{DATASETS_DIR}/uswrf.ntat.mon.1981-2010.ltm.nc"
-    fp_lf = f"{DATASETS_DIR}/nasa.landmet.anc.st.l3v1.zlf.nc"
+    # fp_lf = f"{DATASETS_DIR}/nasa.landmet.anc.st.l3v1.zlf.nc"
 
     ncep_url = "http://www.esrl.noaa.gov/psd/thredds/dodsC/Datasets/ncep.reanalysis.derived/"
 
@@ -57,8 +57,8 @@ class Utils:
         "NCEP upwelling shortwave radiation",
     ).sortby("lat")
 
-    print("Loading NASA land fraction data ...")
-    nasa_lf = xr.open_dataset(fp_lf)
+    # print("Loading NASA land fraction data ...")
+    # nasa_lf = xr.open_dataset(fp_lf)
 
     lat_ncep = ncep_Ts.lat
     lon_ncep = ncep_Ts.lon
@@ -145,7 +145,9 @@ class EnergyBasedModelEnv(gym.Env):
             low=np.array(
                 [
                     *[
-                        (self.min_temperature, 0, -90)
+                        (
+                            self.min_temperature
+                        )  # (self.min_temperature, 0, -90)
                         for x in range(len(self.utils.Ts_ncep_annual))
                     ]
                 ],
@@ -156,7 +158,9 @@ class EnergyBasedModelEnv(gym.Env):
             high=np.array(
                 [
                     *[
-                        (self.max_temperature, 100, 90)
+                        (
+                            self.max_temperature
+                        )  # (self.max_temperature, 100, 90)
                         for x in range(len(self.utils.Ts_ncep_annual))
                     ]
                 ],
@@ -164,7 +168,9 @@ class EnergyBasedModelEnv(gym.Env):
             ).reshape(
                 -1,
             ),
-            shape=(3 * len(self.utils.Ts_ncep_annual),),
+            shape=(
+                1 * len(self.utils.Ts_ncep_annual),
+            ),  # (3 * len(Ts_ncep_annual),)
             dtype=np.float32,
         )
 
@@ -202,21 +208,24 @@ class EnergyBasedModelEnv(gym.Env):
         return params
 
     def _get_state(self):
-        self.nasa_lf = (
-            self.utils.nasa_lf.interp(
-                lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-            )
-            .to_array()
-            .values.reshape(-1, 1)
-        )
+        # self.nasa_lf = (
+        #     self.utils.nasa_lf.interp(
+        #         lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
+        #     )
+        #     .to_array()
+        #     .values.reshape(-1, 1)
+        # )
 
-        state = np.concatenate(
-            (self._get_temp(), self.nasa_lf, self.ebm.lat.reshape(-1, 1)),
-            axis=1,
-            dtype=np.float32,
-        )
-        state = state.flatten()
+        # state = np.concatenate(
+        #     (self._get_temp(), self.nasa_lf, self.ebm.lat.reshape(-1, 1)),
+        #     axis=1,
+        #     dtype=np.float32,
+        # )
+        # state = state.flatten()
 
+        state = self._get_temp().reshape(
+            -1,
+        )
         return state
 
     def step(self, action):
@@ -247,6 +256,10 @@ class EnergyBasedModelEnv(gym.Env):
             (np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values)
             ** 2
         )
+
+        # costs += np.mean(
+        #     (np.squeeze(self.ebm.ASR - self.ebm.OLR) - (ASR_ncep_annual - OLR_ncep_annual)).to_numpy() ** 2
+        # )
 
         self.state = self._get_state()
 
