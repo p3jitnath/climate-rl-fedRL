@@ -44,7 +44,7 @@ class RadiativeConvectiveModelEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, seed=None, render_mode=None, locale="uk"):
+    def __init__(self, render_mode=None, locale="uk"):
         self.min_emissivity = 0  # perfect reflector
         self.max_emissivity = 1  # black body
 
@@ -84,7 +84,6 @@ class RadiativeConvectiveModelEnv(gym.Env):
 
         self.locale = locale
         self.render_mode = render_mode
-        self.seed = seed
         self.reset()
 
     def _get_obs(self):
@@ -170,7 +169,7 @@ class RadiativeConvectiveModelEnv(gym.Env):
         #     self.rcm.subprocess["Radiation (net)"].step_forward()
 
         # Start from Isothermal initial state
-        self.rcm.state.Tatm[:] = self.rcm.state.Ts + self.seed * 0
+        self.rcm.state.Tatm[:] = self.rcm.state.Ts
 
         # Initialize a climlab RCM model clone
         self.climlab_rcm = climlab.process_like(self.rcm)

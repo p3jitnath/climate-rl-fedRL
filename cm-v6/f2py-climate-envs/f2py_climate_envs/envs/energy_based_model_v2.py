@@ -18,7 +18,6 @@ class Utils:
     fp_ulwrf = f"{DATASETS_DIR}/ulwrf.ntat.mon.1981-2010.ltm.nc"
     fp_dswrf = f"{DATASETS_DIR}/dswrf.ntat.mon.1981-2010.ltm.nc"
     fp_uswrf = f"{DATASETS_DIR}/uswrf.ntat.mon.1981-2010.ltm.nc"
-    fp_lf = f"{DATASETS_DIR}/nasa.landmet.anc.st.l3v1.zlf.nc"
 
     ncep_url = "http://www.esrl.noaa.gov/psd/thredds/dodsC/Datasets/ncep.reanalysis.derived/"
 
@@ -57,9 +56,6 @@ class Utils:
         "NCEP upwelling shortwave radiation",
     ).sortby("lat")
 
-    print("Loading NASA land fraction data ...")
-    nasa_lf = xr.open_dataset(fp_lf)
-
     lat_ncep = ncep_Ts.lat
     lon_ncep = ncep_Ts.lon
     Ts_ncep_annual = ncep_Ts.skt.mean(dim=("lon", "time"))
@@ -83,9 +79,14 @@ class EnergyBasedModelEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode=None):
+    def __init__(self, seed=None, render_mode=None):
 
         self.utils = Utils()
+
+        self.max_D = self.min_D = (
+            0.6  # Have to be kept constant for single latitude cases
+        )
+        self.phi = -45.0 + 22.5 * (seed)
 
         self.min_D = 0.55
         self.max_D = 0.65
@@ -142,29 +143,9 @@ class EnergyBasedModelEnv(gym.Env):
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
-            low=np.array(
-                [
-                    *[
-                        (self.min_temperature, 0, -90)
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ]
-                ],
-                dtype=np.float32,
-            ).reshape(
-                -1,
-            ),
-            high=np.array(
-                [
-                    *[
-                        (self.max_temperature, 100, 90)
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ]
-                ],
-                dtype=np.float32,
-            ).reshape(
-                -1,
-            ),
-            shape=(3 * len(self.utils.Ts_ncep_annual),),
+            low=self.min_temperature,
+            high=self.max_temperature,
+            shape=(len(self.utils.lat_ncep),),
             dtype=np.float32,
         )
 
@@ -176,14 +157,14 @@ class EnergyBasedModelEnv(gym.Env):
         self.reset()
 
     def _get_obs(self):
-        return self._get_state()
+        return self._get_temp()
 
     def _get_temp(self, model="RL"):
         if model == "RL":
             ebm = self.ebm
         elif model == "climlab":
             ebm = self.climlab_ebm
-        temp = np.array(ebm.Ts, dtype=np.float32)
+        temp = np.array(ebm.Ts, dtype=np.float32).reshape(-1)
         return temp
 
     def _get_info(self):
@@ -202,21 +183,7 @@ class EnergyBasedModelEnv(gym.Env):
         return params
 
     def _get_state(self):
-        self.nasa_lf = (
-            self.utils.nasa_lf.interp(
-                lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-            )
-            .to_array()
-            .values.reshape(-1, 1)
-        )
-
-        state = np.concatenate(
-            (self._get_temp(), self.nasa_lf, self.ebm.lat.reshape(-1, 1)),
-            axis=1,
-            dtype=np.float32,
-        )
-        state = state.flatten()
-
+        state = self._get_temp()
         return state
 
     def step(self, action):
@@ -243,10 +210,9 @@ class EnergyBasedModelEnv(gym.Env):
             lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
         )
 
-        costs = np.mean(
-            (np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values)
-            ** 2
-        )
+        costs = (
+            np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values
+        )[np.abs(self.ebm.lat - self.phi).argmin()] ** 2
 
         self.state = self._get_state()
 
@@ -274,9 +240,6 @@ class EnergyBasedModelEnv(gym.Env):
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0
-        self.Ts_ncep_annual = self.utils.Ts_ncep_annual.interp(
-            lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-        )
 
         # Initialize a climlab EBM model clone
         self.climlab_ebm = climlab.process_like(self.ebm)

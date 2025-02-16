@@ -1,8 +1,8 @@
 import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
-RL_ALGO = "avg"
-ENV_ID = "SimpleClimateBiasCorrection-v0"
+RL_ALGO = "ddpg"
+ENV_ID = "EnergyBasedModel-v2"
 EPISODE_LENGTH = 200
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
 
@@ -44,9 +44,9 @@ class FlowerClient(fl.client.NumPyClient):
         )
 
         cmd = f"""python -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
-        cmd += f"--flwr_client {self.cid} --seed {self.seed} "
-        cmd += f"--actor_layer_size {self.actor_layer_size}"
-        print(cmd, flush=True)
+        cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
+        cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
+        cmd += "--capture_video_freq 50"
 
         # Check if the command is already running using `pgrep`
         check_cmd = f"pgrep -f '{cmd}'"
@@ -59,6 +59,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         # If no process is found, `pgrep` returns a non-zero exit code, so we start the process
         if result.returncode != 0:
+            print(cmd, flush=True)
             subprocess.Popen(cmd.split())
 
         def make_env(env_id, seed):

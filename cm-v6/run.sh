@@ -28,4 +28,5 @@ else
 fi
 
 # 1. Run smartsim
+cd f2py-climate-envs && pip install . && cd ..
 python run_smartsim.py

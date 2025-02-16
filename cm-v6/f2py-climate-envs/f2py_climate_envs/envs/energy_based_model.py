@@ -39,22 +39,22 @@ class Utils:
         ncep_url + "surface_gauss/skt.sfc.mon.1981-2010.ltm.nc",
         fp_Ts,
         "NCEP surface temperature",
-    )
+    ).sortby("lat")
     ncep_ulwrf = download_and_save_dataset(
         ncep_url + "other_gauss/ulwrf.ntat.mon.1981-2010.ltm.nc",
         fp_ulwrf,
         "NCEP upwelling longwave radiation",
-    )
+    ).sortby("lat")
     ncep_dswrf = download_and_save_dataset(
         ncep_url + "other_gauss/dswrf.ntat.mon.1981-2010.ltm.nc",
         fp_dswrf,
         "NCEP downwelling shortwave radiation",
-    )
+    ).sortby("lat")
     ncep_uswrf = download_and_save_dataset(
         ncep_url + "other_gauss/uswrf.ntat.mon.1981-2010.ltm.nc",
         fp_uswrf,
         "NCEP upwelling shortwave radiation",
-    )
+    ).sortby("lat")
 
     lat_ncep = ncep_Ts.lat
     lon_ncep = ncep_Ts.lon
@@ -128,7 +128,7 @@ class EnergyBasedModelEnv(gym.Env):
         self.reset()
 
     def _get_obs(self):
-        return self._get_temp()
+        return self._get_state()
 
     def _get_temp(self, model="RL"):
         if model == "RL":
@@ -173,10 +173,9 @@ class EnergyBasedModelEnv(gym.Env):
         self.climlab_ebm.step_forward()
 
         costs = np.mean(
-            (
-                np.array(self.ebm.Ts.reshape(-1))
-                - self.utils.Ts_ncep_annual.values[::-1]
-            )[15:-15]
+            (np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values)[
+                15:-15
+            ]
             ** 2
         )  # Discard poles
 
@@ -196,6 +195,9 @@ class EnergyBasedModelEnv(gym.Env):
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0
+        self.Ts_ncep_annual = self.utils.Ts_ncep_annual.interp(
+            lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
+        )
 
         # Initialize a climlab EBM model clone
         self.climlab_ebm = climlab.process_like(self.ebm)
@@ -247,8 +249,8 @@ class EnergyBasedModelEnv(gym.Env):
         ax2.plot(self.ebm.lat, self.ebm.Ts, label="EBM Model w/ RL")
         ax2.plot(self.climlab_ebm.lat, self.climlab_ebm.Ts, label="EBM Model")
         ax2.plot(
-            self.utils.lat_ncep,
-            self.utils.Ts_ncep_annual,
+            self.climlab_ebm.lat,
+            self.Ts_ncep_annual,
             label="Observations",
             c="k",
         )
@@ -264,16 +266,14 @@ class EnergyBasedModelEnv(gym.Env):
         ax3.bar(
             x=self.ebm.lat,
             height=np.abs(
-                self.ebm.Ts.reshape(-1)
-                - self.utils.Ts_ncep_annual.values[::-1]
+                self.ebm.Ts.reshape(-1) - self.Ts_ncep_annual.values
             ),
             label="EBM Model w/ RL",
         )
         ax3.bar(
             x=self.climlab_ebm.lat,
             height=np.abs(
-                self.climlab_ebm.Ts.reshape(-1)
-                - self.utils.Ts_ncep_annual.values[::-1]
+                self.climlab_ebm.Ts.reshape(-1) - self.Ts_ncep_annual.values
             ),
             label="EBM Model",
             zorder=-1,

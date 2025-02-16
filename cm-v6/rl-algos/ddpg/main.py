@@ -103,10 +103,12 @@ class Args:
     """flwr client id for Federated Learning"""
 
     def __post_init__(self):
-        if self.optimise or self.flwr_client is not None:
+        if self.flwr_client is not None:
+            self.track = False
+            # self.capture_video = False
+        if self.optimise:
             self.track = False
             self.capture_video = False
-        if self.optimise:
             self.total_timesteps = self.opt_timesteps
 
         if self.optim_group:
@@ -463,16 +465,16 @@ for global_step in range(1, args.total_timesteps + 1):
 
             # load the new actor weights from the global server
             # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
-            fedRL.load_actor_weights()
+            # fedRL.load_actor_weights()
 
             # load the aggregated new replay buffer
             # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)
-            fedRL.load_replay_buffer()
+            # fedRL.load_replay_buffer()
 
             # add the samples to the local replay buffer
-            rb.reset()
-            for sample in fedRL.global_rb:
-                rb.add(*sample)
+            # rb.reset()
+            # for sample in fedRL.global_rb:
+            #     rb.add(*sample)
             # print('[RL Agent]', args.seed, "rb size:", rb.size())
 
             break
