@@ -33,3 +33,9 @@ register(
     entry_point="f2py_climate_envs.envs.energy_based_model_v2:EnergyBasedModelEnv",
     max_episode_steps=200,
 )
+
+register(
+    id="EnergyBasedModel-v3",
+    entry_point="f2py_climate_envs.envs.energy_based_model_v3:EnergyBasedModelEnv",
+    max_episode_steps=200,
+)

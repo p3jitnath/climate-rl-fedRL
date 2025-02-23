@@ -41,7 +41,7 @@ program main
     write(k_f2py,'("f2py_redis_s", i0)') seed
     write(k_py2f,'("py2f_redis_s", i0)') seed
 
-    wait_time = 0.01 ! seconds to wait between checks
+    wait_time = 0.0001 ! seconds to wait between checks
 
     ! Initialize the current temperature (300 - 273.15) / 100
     ! Supports 8 different seeds 0-7 (inclusive)

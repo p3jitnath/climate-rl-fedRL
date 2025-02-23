@@ -2,5 +2,5 @@ from setuptools import setup
 
 setup(
     name="f2py_climate_envs",
-    version="0.0.6",
+    version="0.0.7",
 )

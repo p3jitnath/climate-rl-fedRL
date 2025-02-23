@@ -2,7 +2,7 @@ import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 RL_ALGO = "ddpg"
-ENV_ID = "EnergyBasedModel-v2"
+ENV_ID = "EnergyBasedModel-v3"
 EPISODE_LENGTH = 200
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
 

@@ -15,10 +15,6 @@ class Utils:
     DATASETS_DIR = f"{BASE_DIR}/datasets"
 
     fp_Ts = f"{DATASETS_DIR}/skt.sfc.mon.1981-2010.ltm.nc"
-    fp_ulwrf = f"{DATASETS_DIR}/ulwrf.ntat.mon.1981-2010.ltm.nc"
-    fp_dswrf = f"{DATASETS_DIR}/dswrf.ntat.mon.1981-2010.ltm.nc"
-    fp_uswrf = f"{DATASETS_DIR}/uswrf.ntat.mon.1981-2010.ltm.nc"
-
     ncep_url = "http://www.esrl.noaa.gov/psd/thredds/dodsC/Datasets/ncep.reanalysis.derived/"
 
     def download_and_save_dataset(url, filepath, dataset_name):
@@ -40,30 +36,10 @@ class Utils:
         fp_Ts,
         "NCEP surface temperature",
     ).sortby("lat")
-    ncep_ulwrf = download_and_save_dataset(
-        ncep_url + "other_gauss/ulwrf.ntat.mon.1981-2010.ltm.nc",
-        fp_ulwrf,
-        "NCEP upwelling longwave radiation",
-    ).sortby("lat")
-    ncep_dswrf = download_and_save_dataset(
-        ncep_url + "other_gauss/dswrf.ntat.mon.1981-2010.ltm.nc",
-        fp_dswrf,
-        "NCEP downwelling shortwave radiation",
-    ).sortby("lat")
-    ncep_uswrf = download_and_save_dataset(
-        ncep_url + "other_gauss/uswrf.ntat.mon.1981-2010.ltm.nc",
-        fp_uswrf,
-        "NCEP upwelling shortwave radiation",
-    ).sortby("lat")
 
     lat_ncep = ncep_Ts.lat
     lon_ncep = ncep_Ts.lon
     Ts_ncep_annual = ncep_Ts.skt.mean(dim=("lon", "time"))
-
-    OLR_ncep_annual = ncep_ulwrf.ulwrf.mean(dim=("lon", "time"))
-    ASR_ncep_annual = (ncep_dswrf.dswrf - ncep_uswrf.uswrf).mean(
-        dim=("lon", "time")
-    )
 
     a0_ref = 0.354
     a2_ref = 0.25

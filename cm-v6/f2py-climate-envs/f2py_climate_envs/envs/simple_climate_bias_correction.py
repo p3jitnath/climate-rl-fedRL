@@ -28,6 +28,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         self.screen = None
         self.clock = None
         self.seed = seed
+        self.wait_time = 0.0001
 
         # Define action and observation spaces
         self.action_space = spaces.Box(
@@ -54,7 +55,7 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
         print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
 
-        self.reset(self.seed)
+        # self.reset(self.seed)
 
     def step(self, u):
         """
@@ -79,14 +80,14 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
             f"SIGCOMPUTE_S{self.seed}", np.array([1], dtype=np.int32)
         )
 
-        # Wait for the Fortran model to compute the new temperature and retrieve it
+        # Wait for the Fortran model to compute the new temperature and send
         new_temperature = None
         while new_temperature is None:
             if self.redis.tensor_exists(f"f2py_redis_s{self.seed}"):
                 new_temperature = self.redis.get_tensor(
                     f"f2py_redis_s{self.seed}"
                 )[0]
-                time.sleep(0.01)
+                time.sleep(self.wait_time)
                 self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
             else:
                 continue  # Wait for the computation to complete
@@ -122,14 +123,14 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
             f"SIGSTART_S{self.seed}", np.array([1], dtype=np.int32)
         )
 
-        # Wait for the Fortran model to compute the new temperature and retrieve it
+        # Wait for the Fortran model to initialise itself and send
         initial_temperature = None
         while initial_temperature is None:
             if self.redis.tensor_exists(f"f2py_redis_s{self.seed}"):
                 initial_temperature = self.redis.get_tensor(
                     f"f2py_redis_s{self.seed}"
                 )[0]
-                time.sleep(0.25)
+                time.sleep(self.wait_time)
                 self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
             else:
                 continue  # Wait for the computation to complete

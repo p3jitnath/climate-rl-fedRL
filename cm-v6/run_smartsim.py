@@ -5,9 +5,13 @@ from smartsim import Experiment
 from smartsim.status import SmartSimStatus
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
-# SCM_EXECUTABLE = "f2py-climate-envs/f2py_climate_envs/envs/scm.o"
-FLWR_SCRIPT = "flwr_main.py"
-SEEDS = [x for x in range(5)]  # Add more seeds here if needed
+ENVIRONMENT_DIR = f"{BASE_DIR}/f2py-climate-envs/f2py_climate_envs/envs"
+
+FLWR_EXE = "flwr_main.py"
+# SCM_EXE = "scm.o"
+CLIMLAB_EXE = "climlab_ebm.py"
+
+SEEDS = [x for x in range(36)]  # Add more seeds here if needed
 
 
 def get_redis_port():
@@ -52,7 +56,7 @@ def wait_for_completion(exp, models, label=""):
 
 def main():
     # Initialise SmartSim Experiment
-    exp = Experiment("FLWR_Orchestrator", launcher="local")
+    exp = Experiment("SM-FLWR_Orchestrator", launcher="local")
 
     # Retrieve Redis port and start Redis database
     redis_port = get_redis_port()
@@ -65,19 +69,27 @@ def main():
     # for seed in SEEDS:
     #     model = create_and_start_model(
     #         exp,
-    #         f"SCM_Seed_{seed}",
-    #         f"{BASE_DIR}/{SCM_EXECUTABLE}",
+    #         f"SCM_{seed}",
+    #         f"{ENVIRONMENT_DIR}/{SCM_EXE}",
     #         [str(seed)],
     #         block=False,
     #     )
     #     scm_models.append(model)
+
+    ebm_model = create_and_start_model(
+        exp,
+        "EBM",
+        f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}",
+        ["--num_seeds", f"{len(SEEDS)}"],
+        block=False,
+    )
 
     # Start FLWR orchestrator
     flwr_model = create_and_start_model(
         exp,
         "FLWR_Orchestrator",
         "python",
-        [f"{BASE_DIR}/{FLWR_SCRIPT}", "--num_clients", f"{len(SEEDS)}"],
+        [f"{BASE_DIR}/{FLWR_EXE}", "--num_clients", f"{len(SEEDS)}"],
         block=False,
     )
 
@@ -85,7 +97,9 @@ def main():
     wait_for_completion(exp, [flwr_model], label="FLWR")
 
     # Stop all processes after completion
-    exp.stop(redis_model)  # exp.stop(*scm_models, redis_model)
+    # exp.stop(*scm_models)
+    exp.stop(ebm_model)
+    exp.stop(redis_model)
     print("Experiment completed successfully.", flush=True)
 
 

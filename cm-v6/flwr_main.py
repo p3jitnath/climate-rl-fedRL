@@ -99,7 +99,7 @@ def main():
     )
 
     # Calculate total CPU and GPU requirements
-    total_cpus = num_clients * 1  # Each client gets 2 CPUs
+    total_cpus = num_clients * 1 + 1  # Each client gets 1 CPU + 1 extra
     total_gpus = (
         0  # math.ceil(num_clients * 0.25)  # Each client gets 0.25 GPU
     )
@@ -112,7 +112,7 @@ def main():
         ray_init_args={"num_cpus": total_cpus, "num_gpus": total_gpus},
         client_resources={"num_cpus": 1, "num_gpus": 0},  # "num_gpus": 0.25},
         config=fl.server.ServerConfig(
-            num_rounds=21
+            num_rounds=30
         ),  # num_steps = 5 * steps_per_episode * num_rounds
     )
 
