@@ -8,6 +8,10 @@ from gymnasium import spaces
 from matplotlib.gridspec import GridSpec
 from smartredis import Client
 
+EBM_LATITUDES = 94
+NUM_SEEDS = 2
+EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
+
 
 class EnergyBasedModelEnv(gym.Env):
 
@@ -48,8 +52,8 @@ class EnergyBasedModelEnv(gym.Env):
             low=np.array(
                 [
                     # self.min_D,
-                    self.min_A,
-                    self.min_B,
+                    *[self.min_A for _ in range(EBM_SUBLATITUDES)],
+                    *[self.min_B for _ in range(EBM_SUBLATITUDES)],
                     # self.min_a0,
                     # self.min_a2,
                 ],
@@ -58,20 +62,20 @@ class EnergyBasedModelEnv(gym.Env):
             high=np.array(
                 [
                     # self.max_D,
-                    self.max_A,
-                    self.max_B,
+                    *[self.max_A for _ in range(EBM_SUBLATITUDES)],
+                    *[self.max_B for _ in range(EBM_SUBLATITUDES)],
                     # self.max_a0,
                     # self.max_a2,
                 ],
                 dtype=np.float32,
             ),
-            shape=(2,),
+            shape=(EBM_SUBLATITUDES * 2,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
             low=self.min_temperature,
             high=self.max_temperature,
-            shape=(len(range(36)),),
+            shape=(EBM_SUBLATITUDES,),
             dtype=np.float32,
         )
 
@@ -103,7 +107,7 @@ class EnergyBasedModelEnv(gym.Env):
 
     def step(self, action):
         # D, A, B, a0, a2 = action
-        self.A, self.B = action
+        self.A, self.B = action[:EBM_SUBLATITUDES], action[EBM_SUBLATITUDES:]
 
         # Clip actions to the allowed range
         # D = np.clip(D, self.min_D, self.max_D)
@@ -134,17 +138,17 @@ class EnergyBasedModelEnv(gym.Env):
                 continue
 
         # Update the state
-        self.state = self.ebm_Ts.reshape(
-            -1,
-        )  # [np.abs(self.ebm_lat - self.phi).argmin()]
+        self.state = self.ebm_Ts[self.ebm_min_idx : self.ebm_max_idx].reshape(
+            -1
+        )
 
         # Calculate the cost (mean squared error) in Python
-        costs = (
+        costs = np.mean(
             (self.ebm_Ts - self.Ts_ncep_annual)[
-                np.abs(self.ebm_lat - self.phi).argmin()
+                self.ebm_min_idx : self.ebm_max_idx
             ]
             ** 2
-        )[0]
+        )
 
         return self._get_obs(), -costs, False, False, self._get_info()
 
@@ -172,10 +176,14 @@ class EnergyBasedModelEnv(gym.Env):
                 continue  # Wait for the computation to complete
 
         # Initialise the state
-        self.phi = self.ebm_lat[self.seed]
-        self.state = self.ebm_Ts.reshape(
-            -1,
-        )  # [np.abs(self.ebm_lat - self.phi).argmin()]
+        self.ebm_min_idx, self.ebm_max_idx = (
+            self.seed * EBM_SUBLATITUDES,
+            (self.seed + 1) * EBM_SUBLATITUDES,
+        )
+        self.phi = self.ebm_lat[self.ebm_min_idx : self.ebm_max_idx]
+        self.state = self.ebm_Ts[self.ebm_min_idx : self.ebm_max_idx].reshape(
+            -1
+        )
 
         return self._get_obs(), self._get_info()
 
@@ -195,7 +203,7 @@ class EnergyBasedModelEnv(gym.Env):
         ]
         ax1_bars = ax1.bar(
             ax1_labels,
-            params,
+            [np.mean(params[0]), np.mean(params[1])],
             color=ax1_colors,
             width=0.75,
         )
@@ -216,8 +224,16 @@ class EnergyBasedModelEnv(gym.Env):
 
         # Middle subplot: Temperature v/s Latitude
         ax2 = fig.add_subplot(gs[0, 1])
-        ax2.plot(self.ebm_lat, self.ebm_Ts, label="EBM Model w/ RL")
-        ax2.plot(self.ebm_lat, self.climlab_ebm_Ts, label="EBM Model")
+        ax2.plot(
+            self.ebm_lat[self.ebm_min_idx : self.ebm_max_idx],
+            self.ebm_Ts[self.ebm_min_idx : self.ebm_max_idx],
+            label="EBM Model w/ RL",
+        )
+        ax2.plot(
+            self.ebm_lat[self.ebm_min_idx : self.ebm_max_idx],
+            self.climlab_ebm_Ts[self.ebm_min_idx : self.ebm_max_idx],
+            label="EBM Model",
+        )
         ax2.plot(
             self.ebm_lat,
             self.Ts_ncep_annual,
@@ -234,15 +250,19 @@ class EnergyBasedModelEnv(gym.Env):
         # Right subplot: Error v/s Latitude
         ax3 = fig.add_subplot(gs[0, 2])
         ax3.bar(
-            x=self.ebm_lat.reshape(-1),
-            height=np.abs(self.ebm_Ts - self.Ts_ncep_annual).reshape(-1),
+            x=self.ebm_lat[self.ebm_min_idx : self.ebm_max_idx].reshape(-1),
+            height=np.abs(
+                self.ebm_Ts[self.ebm_min_idx : self.ebm_max_idx]
+                - self.Ts_ncep_annual[self.ebm_min_idx : self.ebm_max_idx]
+            ).reshape(-1),
             label="EBM Model w/ RL",
         )
         ax3.bar(
-            x=self.ebm_lat.reshape(-1),
-            height=np.abs(self.climlab_ebm_Ts - self.Ts_ncep_annual).reshape(
-                -1
-            ),
+            x=self.ebm_lat[self.ebm_min_idx : self.ebm_max_idx].reshape(-1),
+            height=np.abs(
+                self.climlab_ebm_Ts[self.ebm_min_idx : self.ebm_max_idx]
+                - self.Ts_ncep_annual[self.ebm_min_idx : self.ebm_max_idx]
+            ).reshape(-1),
             label="EBM Model",
             zorder=-1,
         )

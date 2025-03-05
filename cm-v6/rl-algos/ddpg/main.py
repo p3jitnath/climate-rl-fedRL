@@ -468,7 +468,7 @@ for global_step in range(1, args.total_timesteps + 1):
 
                 # load the new actor weights from the global server
                 # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
-                # fedRL.load_actor_weights()
+                fedRL.load_actor_weights()
 
                 # load the aggregated new replay buffer
                 # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)

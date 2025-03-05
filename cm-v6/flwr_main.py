@@ -112,7 +112,7 @@ def main():
         ray_init_args={"num_cpus": total_cpus, "num_gpus": total_gpus},
         client_resources={"num_cpus": 1, "num_gpus": 0},  # "num_gpus": 0.25},
         config=fl.server.ServerConfig(
-            num_rounds=30
+            num_rounds=20
         ),  # num_steps = 5 * steps_per_episode * num_rounds
     )
 

@@ -4,6 +4,9 @@ BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 RL_ALGO = "ddpg"
 ENV_ID = "EnergyBasedModel-v3"
 EPISODE_LENGTH = 200
+
+PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
+
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
 
 
@@ -43,7 +46,7 @@ class FlowerClient(fl.client.NumPyClient):
             flush=True,
         )
 
-        cmd = f"""python -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
+        cmd = f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
         cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
         cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
         cmd += "--capture_video_freq 50"

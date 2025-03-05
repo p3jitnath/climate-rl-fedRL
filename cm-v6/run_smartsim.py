@@ -6,26 +6,52 @@ from smartsim.status import SmartSimStatus
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v6"
 ENVIRONMENT_DIR = f"{BASE_DIR}/f2py-climate-envs/f2py_climate_envs/envs"
+PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
 
 FLWR_EXE = "flwr_main.py"
-# SCM_EXE = "scm.o"
+SCM_EXE = "scm.o"
 CLIMLAB_EXE = "climlab_ebm.py"
 
-SEEDS = [x for x in range(36)]  # Add more seeds here if needed
+NUM_SEEDS = 2
+SEEDS = [x for x in range(NUM_SEEDS)]  # Add more seeds here if needed
+
+SBATCH_ARGS = {
+    "nodes": 1,
+    "ntasks-per-node": 1,
+    "cpus-per-task": 2,
+    "mem-per-cpu": "8G",
+    "time": "01:00:00",
+    "partition": "test",
+}
 
 
-def get_redis_port():
-    """Retrieve the Redis port from the SSDB environment variable."""
-    redis_port = os.getenv("SSDB")
-    if not redis_port:
-        raise EnvironmentError("The environment variable $SSDB is not set.")
-    return int(redis_port.split(":")[-1])
+FLWR_SBATCH_ARGS = {
+    "nodes": 1,
+    "ntasks-per-node": 1,
+    "cpus-per-task": NUM_SEEDS + 1,
+    "mem-per-cpu": "8G",
+    "time": "01:00:00",
+    "partition": "test",
+}
+
+# NUM_CPUs : 1 (THIS) + 1 (CLIMATE MODEL) + NUM_SEEDS+1 (FLWR)
+
+# def get_redis_port():
+#     """Retrieve the Redis port from the SSDB environment variable."""
+#     redis_port = os.getenv("SSDB")
+#     if not redis_port:
+#         raise EnvironmentError("The environment variable $SSDB is not set.")
+#     return int(redis_port.split(":")[-1])
 
 
-def create_and_start_model(exp, name, exe_path, args, block=False):
+def create_and_start_model(
+    exp, name, exe_path, args, block=False, batch_settings=None
+):
     """Create and start a model with specified settings."""
-    settings = exp.create_run_settings(exe=exe_path, exe_args=args)
-    model = exp.create_model(name, run_settings=settings)
+    run_settings = exp.create_run_settings(exe=exe_path, exe_args=args)
+    model = exp.create_model(
+        name, run_settings=run_settings, batch_settings=batch_settings
+    )
     exp.start(model, block=block)
     print(f"{name} started with args: {args}", flush=True)
     return model
@@ -56,13 +82,19 @@ def wait_for_completion(exp, models, label=""):
 
 def main():
     # Initialise SmartSim Experiment
-    exp = Experiment("SM-FLWR_Orchestrator", launcher="local")
+    exp = Experiment("SM-FLWR_Orchestrator", launcher="auto")
 
     # Retrieve Redis port and start Redis database
-    redis_port = get_redis_port()
-    redis_model = exp.create_database(port=redis_port, interface="lo")
+    redis_model = exp.create_database(interface="team_mpi")
     exp.start(redis_model)
-    print(f"Redis database started on port {redis_port}.", flush=True)
+    redis_port = redis_model.get_address()[0]
+    SBATCH_ARGS["export"] = FLWR_SBATCH_ARGS["export"] = f"SSDB={redis_port}"
+
+    # Generate the batch settings
+    batch_settings = exp.create_batch_settings(batch_args=SBATCH_ARGS)
+    flwr_batch_settings = exp.create_batch_settings(
+        batch_args=FLWR_SBATCH_ARGS
+    )
 
     # Start SCM processes with different seeds
     # scm_models = []
@@ -73,24 +105,27 @@ def main():
     #         f"{ENVIRONMENT_DIR}/{SCM_EXE}",
     #         [str(seed)],
     #         block=False,
+    #         batch_settings=batch_settings
     #     )
     #     scm_models.append(model)
 
     ebm_model = create_and_start_model(
         exp,
         "EBM",
-        f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}",
-        ["--num_seeds", f"{len(SEEDS)}"],
+        PYTHON_EXE,
+        [f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}", "--num_seeds", f"{len(SEEDS)}"],
         block=False,
+        batch_settings=batch_settings,
     )
 
     # Start FLWR orchestrator
     flwr_model = create_and_start_model(
         exp,
         "FLWR_Orchestrator",
-        "python",
+        PYTHON_EXE,
         [f"{BASE_DIR}/{FLWR_EXE}", "--num_clients", f"{len(SEEDS)}"],
         block=False,
+        batch_settings=flwr_batch_settings,
     )
 
     # Wait for FLWR process to complete

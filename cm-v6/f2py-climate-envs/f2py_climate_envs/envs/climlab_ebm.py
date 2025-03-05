@@ -11,12 +11,13 @@ import xarray as xr
 from smartredis import Client
 
 WAIT_TIME = 0.0001
+EBM_LATITUDES = 94
 
 
 @dataclass
 class Args:
     num_seeds: int = 2
-    """number of seeds (corresponding to latitude levels in the EBM)"""
+    """number of seeds (corresponding to latitudes in the EBM)"""
 
 
 class Utils:
@@ -73,12 +74,12 @@ class ClimLabEBM:
             a2=self.utils.a2_ref,
             D=self.utils.D_ref,
             A=np.array(
-                [self.utils.A_ref * 1e2 for x in range(args.num_seeds)]
+                [self.utils.A_ref * 1e2 for x in range(EBM_LATITUDES)]
             ).reshape(-1, 1),
             B=np.array(
-                [self.utils.B_ref for x in range(args.num_seeds)]
+                [self.utils.B_ref for x in range(EBM_LATITUDES)]
             ).reshape(-1, 1),
-            num_lat=args.num_seeds,
+            num_lat=EBM_LATITUDES,
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0
