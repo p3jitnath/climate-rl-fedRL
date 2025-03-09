@@ -51,17 +51,22 @@ class FlowerClient(fl.client.NumPyClient):
         cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
         cmd += "--capture_video_freq 50"
 
-        # Check if the command is already running using `pgrep`
-        check_cmd = f"pgrep -f '{cmd}'"
-        result = subprocess.run(
-            check_cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        # # Check if the command is already running using `pgrep`
+        # check_cmd = f"pgrep -f '{cmd}'"
+        # is_alive = subprocess.run(
+        #     check_cmd,
+        #     shell=True,
+        #     stdout=subprocess.PIPE,
+        #     stderr=subprocess.PIPE,
+        # )
 
-        # If no process is found, `pgrep` returns a non-zero exit code, so we start the process
-        if result.returncode != 0:
+        # # If no process is found, `pgrep` returns a non-zero exit code, so we start the process
+        # if is_alive.returncode != 0:
+        #     print(cmd, flush=True)
+        #     subprocess.Popen(cmd.split())
+
+        is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.seed}")
+        if not is_alive:
             print(cmd, flush=True)
             subprocess.Popen(cmd.split())
 

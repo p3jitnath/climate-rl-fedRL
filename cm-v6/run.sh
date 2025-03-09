@@ -51,4 +51,4 @@ rm -rf SM-FLWR_Orchestrator
 
 # 1. Run smartsim
 cd f2py-climate-envs && pip install . && cd ..
-sbatch run_slurm_smartsim.sh
+sbatch slurm_smartsim.sh

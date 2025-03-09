@@ -11,7 +11,7 @@ import xarray as xr
 from smartredis import Client
 
 WAIT_TIME = 0.0001
-EBM_LATITUDES = 94
+EBM_LATITUDES = 96
 
 
 @dataclass

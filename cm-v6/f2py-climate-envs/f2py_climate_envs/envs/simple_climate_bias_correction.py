@@ -55,6 +55,10 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
         print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
 
+        self.redis.put_tensor(
+            f"SIGALIVE_S{self.seed}", np.array([1], dtype=np.int32)
+        )
+
         # self.reset(self.seed)
 
     def step(self, u):
