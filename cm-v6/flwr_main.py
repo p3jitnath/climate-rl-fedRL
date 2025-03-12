@@ -89,7 +89,7 @@ def main():
     num_clients = args.num_clients
 
     # Define the client function
-    client_fn = generate_client_fn(actor_layer_size=256)
+    client_fn = generate_client_fn(actor_critic_layer_size=256)
 
     # Define the federated learning strategy
     strategy = FedAvgWithBuffer(
@@ -98,8 +98,9 @@ def main():
         fraction_evaluate=0.0,
     )
 
+    # Comment for local run
     # Calculate total CPU and GPU requirements
-    # total_cpus = num_clients * 3 + 1  # Each client gets 3 CPUs + 1 extra
+    # total_cpus = num_clients * 2 + 1  # Each client gets 2 CPUs + 1 extra
     # total_gpus = (
     #     0  # math.ceil(num_clients * 0.25)  # Each client gets 0.25 GPU
     # )
@@ -109,7 +110,7 @@ def main():
         client_fn=client_fn,
         num_clients=num_clients,
         strategy=strategy,
-        # ray_init_args={"num_cpus": total_cpus, "num_gpus": total_gpus},
+        # ray_init_args={"num_cpus": total_cpus, "num_gpus": total_gpus},  # Comment for local run
         client_resources={"num_cpus": 3, "num_gpus": 0},  # "num_gpus": 0.25},
         config=fl.server.ServerConfig(
             num_rounds=20

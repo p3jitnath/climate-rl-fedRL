@@ -3,6 +3,7 @@
 
 # ray stop --force
 rm -rf SM-FLWR_Orchestrator
+export SSDB=localhost:6380
 
 # # Check for keys matching "SIG*" pattern in Redis on port 6380
 # sig_keys=$(redis-cli -p 6380 KEYS "SIG*")
@@ -51,4 +52,4 @@ rm -rf SM-FLWR_Orchestrator
 
 # 1. Run smartsim
 cd f2py-climate-envs && pip install . && cd ..
-sbatch slurm_smartsim.sh
+python run_smartsim.py

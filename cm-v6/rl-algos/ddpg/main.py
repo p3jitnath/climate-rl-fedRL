@@ -103,6 +103,10 @@ class Args:
     """flwr client id for Federated Learning"""
     flwr_episodes: int = 5
     """the number of episodes after each flwr update"""
+    flwr_actor: bool = True
+    """whether to exchange actor network weights"""
+    flwr_critic: bool = False
+    """whether to exchange critic network weights"""
 
     def __post_init__(self):
         if self.flwr_client is not None:
@@ -247,11 +251,17 @@ start_time = time.time()
 if args.flwr_client is not None:
 
     class FedRL:
-        def __init__(self, actor, flwr_client):
+        def __init__(
+            self, actor, critic, flwr_client, flwr_actor, flwr_critic
+        ):
             self.actor = actor
+            self.critic = critic
             self.flwr_client = flwr_client
+
             self.new_rb_entries = []
             self.global_rb = None
+            self.flwr_actor = flwr_actor
+            self.flwr_critic = flwr_critic
 
             # SmartRedis setup
             self.REDIS_ADDRESS = os.getenv("SSDB")
@@ -263,55 +273,120 @@ if args.flwr_client is not None:
                 flush=True,
             )
 
-        # load the latest actor weights from Redis
-        def load_actor_weights(self):
-            # Wait for signal that weights are available
-            while not self.redis.tensor_exists(
-                f"actor_network_weights_g2c_s{args.seed}"
-            ):
-                pass
+        # load the latest weights from Redis
+        def load_weights(self):
+            # 1. Actor
+            if self.flwr_actor:
+                # Wait for signal that weights are available
+                while not self.redis.tensor_exists(
+                    f"actor_network_weights_g2c_s{args.seed}"
+                ):
+                    pass
 
-            # Retrieve and reshape weights tensor based on Actor's structure
-            weights = self.redis.get_tensor(
-                f"actor_network_weights_g2c_s{args.seed}"
-            )
-            # print('[RL Agent]', args.seed, 'L', weights[0:5], flush=True)
+                # Retrieve and reshape weights tensor based on Actor's structure
+                actor_weights = self.redis.get_tensor(
+                    f"actor_network_weights_g2c_s{args.seed}"
+                )
+                # print('[RL Agent] Actor', args.seed, 'L', actor_weights[0:5], flush=True)
 
-            old_params = [
-                param.clone().detach() for param in self.actor.parameters()
-            ]
+                old_actor_params = [
+                    param.clone().detach() for param in self.actor.parameters()
+                ]
 
-            offset = 0
-            for param in self.actor.parameters():
-                size = np.prod(param.shape)
-                param.data.copy_(
-                    torch.tensor(
-                        weights[offset : offset + size].reshape(param.shape)
+                offset = 0
+                for param in self.actor.parameters():
+                    size = np.prod(param.shape)
+                    param.data.copy_(
+                        torch.tensor(
+                            actor_weights[offset : offset + size].reshape(
+                                param.shape
+                            )
+                        )
+                    )
+                    offset += size
+
+                actor_diff_norm = sum(
+                    torch.norm(old - new)
+                    for old, new in zip(
+                        old_actor_params, self.actor.parameters()
                     )
                 )
-                offset += size
+                print(f"[RL Agent] Actor norm: {actor_diff_norm}")
 
-            diff_norm = sum(
-                torch.norm(old - new)
-                for old, new in zip(old_params, self.actor.parameters())
-            )
-            print(f"[RL Agent] norm: {diff_norm}")
+                # Clear weights and signal to reset for the next round
+                self.redis.delete_tensor(
+                    f"actor_network_weights_g2c_s{args.seed}"
+                )
 
-            # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(f"actor_network_weights_g2c_s{args.seed}")
+            # 2. Critic
+            if self.flwr_critic:
+                # Wait for signal that weights are available
+                while not self.redis.tensor_exists(
+                    f"critic_network_weights_g2c_s{args.seed}"
+                ):
+                    pass
+
+                # Retrieve and reshape weights tensor based on Critic's structure
+                critic_weights = self.redis.get_tensor(
+                    f"critic_network_weights_g2c_s{args.seed}"
+                )
+                # print('[RL Agent] Critic', args.seed, 'L', critic_weights[0:5], flush=True)
+
+                old_critic_params = [
+                    param.clone().detach()
+                    for param in self.critic.parameters()
+                ]
+
+                offset = 0
+                for param in self.critic.parameters():
+                    size = np.prod(param.shape)
+                    param.data.copy_(
+                        torch.tensor(
+                            critic_weights[offset : offset + size].reshape(
+                                param.shape
+                            )
+                        )
+                    )
+                    offset += size
+
+                critic_diff_norm = sum(
+                    torch.norm(old - new)
+                    for old, new in zip(
+                        old_critic_params, self.critic.parameters()
+                    )
+                )
+                print(f"[RL Agent] Critic norm: {critic_diff_norm}")
+
+                # Clear weights and signal to reset for the next round
+                self.redis.delete_tensor(
+                    f"critic_network_weights_g2c_s{args.seed}"
+                )
 
         # save updated weights to Redis
-        def save_actor_weights(self):
-            weights = np.concatenate(
+        def save_weights(self):
+            # 1. Actor
+            actor_weights = np.concatenate(
                 [
                     param.data.cpu().numpy().flatten()
                     for param in self.actor.parameters()
                 ]
             )
             self.redis.put_tensor(
-                f"actor_network_weights_c2g_s{args.seed}", weights
+                f"actor_network_weights_c2g_s{args.seed}", actor_weights
             )
-            # print('[RL Agent]', args.seed, 'S', weights[0:5], flush=True)
+            # print('[RL Agent] Actor', args.seed, 'S', weights[0:5], flush=True)
+
+            # 2. Critic
+            critic_weights = np.concatenate(
+                [
+                    param.data.cpu().numpy().flatten()
+                    for param in self.critic.parameters()
+                ]
+            )
+            self.redis.put_tensor(
+                f"critic_network_weights_c2g_s{args.seed}", critic_weights
+            )
+            # print('[RL Agent] Critic', args.seed, 'S', weights[0:5], flush=True)
 
         # load the current global replay buffer from Redis
         def load_replay_buffer(self):
@@ -333,15 +408,17 @@ if args.flwr_client is not None:
             )
             self.new_rb_entries = []
 
-    fedRL = FedRL(actor, args.flwr_client)
+    fedRL = FedRL(
+        actor, qf1, args.flwr_client, args.flwr_actor, args.flwr_critic
+    )
 
     # save the current initial actor weights when using federated learning
     # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
-    fedRL.save_actor_weights()
+    fedRL.save_weights()
 
     # load the new actor weights from the global server
     # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
-    fedRL.load_actor_weights()
+    fedRL.load_weights()
 
 # 1. start the game
 obs, _ = envs.reset(seed=args.seed)
@@ -458,17 +535,17 @@ for global_step in range(1, args.total_timesteps + 1):
     if args.flwr_client is not None and "final_info" in infos:
         if global_step % (args.flwr_episodes * args.num_steps) == 0:
             for info in infos["final_info"]:
-                # save the current actor weights when using federated learning
-                # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
-                fedRL.save_actor_weights()
+                # save the current actor and/or critic weights when using federated learning
+                # print('[RL Agent]', args.seed, "saving local weights", flush=True)
+                fedRL.save_weights()
 
                 # send the new replay buffer additions to the global server
                 # print('[RL Agent]', args.seed, "saving new local replay buffer entries", flush=True)
                 # fedRL.save_new_replay_buffer_entries()
 
-                # load the new actor weights from the global server
-                # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
-                fedRL.load_actor_weights()
+                # load the new actor and/or critic weights from the global server
+                # print('[RL Agent]', args.seed, "loading global weights", flush=True)
+                fedRL.load_weights()
 
                 # load the aggregated new replay buffer
                 # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)

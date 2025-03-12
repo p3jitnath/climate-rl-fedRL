@@ -28,9 +28,11 @@ Actor, Critic = getattr(
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, actor_layer_size, cid):
+    def __init__(self, actor_critic_layer_size, cid):
         super().__init__()
-        self.actor_layer_size = actor_layer_size
+        self.actor_layer_size = self.critic_layer_size = (
+            actor_critic_layer_size
+        )
         self.cid = cid
         self.seed = int(cid)
 
@@ -48,7 +50,10 @@ class FlowerClient(fl.client.NumPyClient):
 
         cmd = f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
         cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
-        cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
+        cmd += (
+            f"--actor_layer_size {self.actor_layer_size} --critic_layer_size {self.critic_layer_size}"
+            + " "
+        )
         cmd += "--capture_video_freq 50"
 
         # # Check if the command is already running using `pgrep`
@@ -88,32 +93,50 @@ class FlowerClient(fl.client.NumPyClient):
         ), "only continuous action space is supported"
 
         self.actor = Actor(self.envs, self.actor_layer_size)
+        self.critic = Critic(self.envs, self.critic_layer_size)
+        self.actor_offset = len(list(self.actor.parameters()))
 
     def set_parameters(self, parameters):
+        # 1. Actor
         # Flatten and stack all layer weights into one large tensor
-        weights = np.concatenate([param.flatten() for param in parameters])
+        actor_weights = np.concatenate(
+            [param.flatten() for param in parameters[: self.actor_offset]]
+        )
 
         # Store weights in Redis and send a signal to indicate update
         self.redis.put_tensor(
-            f"actor_network_weights_g2c_s{self.seed}", weights
+            f"actor_network_weights_g2c_s{self.seed}", actor_weights
+        )
+
+        # 2. Critic
+        # Flatten and stack all layer weights into one large tensor
+        critic_weights = np.concatenate(
+            [param.flatten() for param in parameters[self.actor_offset :]]
+        )
+
+        # Store weights in Redis and send a signal to indicate update
+        self.redis.put_tensor(
+            f"critic_network_weights_g2c_s{self.seed}", critic_weights
         )
 
     def get_parameters(self, config):
-        # Wait for signal that weights are available
+
+        # 1. Actor
+        # Wait for signal that actor network weights are available
         while not self.redis.tensor_exists(
             f"actor_network_weights_c2g_s{self.seed}"
         ):
             continue
 
         # Retrieve and reshape weights tensor based on Actor's structure
-        weights = self.redis.get_tensor(
+        actor_weights = self.redis.get_tensor(
             f"actor_network_weights_c2g_s{self.seed}"
         )
         parameters = []
         offset = 0
         for param in self.actor.parameters():
             size = np.prod(param.shape)
-            layer_weights = weights[offset : offset + size].reshape(
+            layer_weights = actor_weights[offset : offset + size].reshape(
                 param.shape
             )
             parameters.append(layer_weights)
@@ -121,6 +144,30 @@ class FlowerClient(fl.client.NumPyClient):
 
         # Clear weights and signal to reset for the next round
         self.redis.delete_tensor(f"actor_network_weights_c2g_s{self.seed}")
+
+        # 2. Critic
+        # Wait for signal that critic network weights are available
+        while not self.redis.tensor_exists(
+            f"critic_network_weights_c2g_s{self.seed}"
+        ):
+            continue
+
+        # Retrieve and reshape weights tensor based on Critic's structure
+        critic_weights = self.redis.get_tensor(
+            f"critic_network_weights_c2g_s{self.seed}"
+        )
+
+        offset = 0
+        for param in self.critic.parameters():
+            size = np.prod(param.shape)
+            layer_weights = critic_weights[offset : offset + size].reshape(
+                param.shape
+            )
+            parameters.append(layer_weights)
+            offset += size
+
+        # Clear weights and signal to reset for the next round
+        self.redis.delete_tensor(f"critic_network_weights_c2g_s{self.seed}")
 
         return parameters
 
@@ -164,10 +211,10 @@ class FlowerClient(fl.client.NumPyClient):
         )
 
 
-def generate_client_fn(actor_layer_size=256):
+def generate_client_fn(actor_critic_layer_size=256):
     def client_fn(context):
         return FlowerClient(
-            actor_layer_size, int(context.node_config["partition-id"])
+            actor_critic_layer_size, int(context.node_config["partition-id"])
         ).to_client()
 
     return client_fn
