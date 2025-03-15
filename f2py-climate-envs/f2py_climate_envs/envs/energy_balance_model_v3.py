@@ -13,7 +13,7 @@ NUM_SEEDS = 2
 EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
 
 
-class EnergyBasedModelEnv(gym.Env):
+class EnergyBalanceModelEnv(gym.Env):
 
     metadata = {
         "render_modes": ["human", "rgb_array"],

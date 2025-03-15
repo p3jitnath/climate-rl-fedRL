@@ -2,7 +2,7 @@ import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
 RL_ALGO = "ddpg"
-ENV_ID = "EnergyBasedModel-v3"
+ENV_ID = "EnergyBalanceModel-v3"
 EPISODE_LENGTH = 200
 
 PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"

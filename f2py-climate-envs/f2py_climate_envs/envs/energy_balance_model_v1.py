@@ -76,7 +76,7 @@ class Utils:
     B_ref = 2
 
 
-class EnergyBasedModelEnv(gym.Env):
+class EnergyBalanceModelEnv(gym.Env):
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
