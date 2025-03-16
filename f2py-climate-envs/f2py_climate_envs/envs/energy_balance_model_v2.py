@@ -8,6 +8,10 @@ import xarray as xr
 from gymnasium import spaces
 from matplotlib.gridspec import GridSpec
 
+EBM_LATITUDES = 96
+NUM_SEEDS = 2
+EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
+
 
 class Utils:
 
@@ -58,11 +62,11 @@ class EnergyBalanceModelEnv(gym.Env):
     def __init__(self, seed=None, render_mode=None):
 
         self.utils = Utils()
+        self.seed = seed
 
         self.max_D = self.min_D = (
             0.6  # Have to be kept constant for single latitude cases
         )
-        self.phi = -45.0 + 22.5 * (seed)
 
         # self.min_D = 0.55
         # self.max_D = 0.65
@@ -86,14 +90,8 @@ class EnergyBalanceModelEnv(gym.Env):
             low=np.array(
                 [
                     self.min_D,
-                    *[
-                        self.min_A
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    *[
-                        self.min_B
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
+                    *[self.min_A for x in range(EBM_LATITUDES)],
+                    *[self.min_B for x in range(EBM_LATITUDES)],
                     self.min_a0,
                     self.min_a2,
                 ],
@@ -102,26 +100,20 @@ class EnergyBalanceModelEnv(gym.Env):
             high=np.array(
                 [
                     self.max_D,
-                    *[
-                        self.max_A
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    *[
-                        self.max_B
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
+                    *[self.max_A for x in range(EBM_LATITUDES)],
+                    *[self.max_B for x in range(EBM_LATITUDES)],
                     self.max_a0,
                     self.max_a2,
                 ],
                 dtype=np.float32,
             ),
-            shape=(3 + 2 * len(self.utils.Ts_ncep_annual),),
+            shape=(3 + 2 * EBM_LATITUDES,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
             low=self.min_temperature,
             high=self.max_temperature,
-            shape=(len(self.utils.Ts_ncep_annual),),
+            shape=(EBM_LATITUDES,),
             dtype=np.float32,
         )
 
@@ -164,7 +156,7 @@ class EnergyBalanceModelEnv(gym.Env):
 
     def step(self, action):
         D, a0, a2 = action[0], action[-2], action[-1]
-        split_idx = 1 + len(self.utils.Ts_ncep_annual)
+        split_idx = 1 + EBM_LATITUDES
         A = np.array(action[1:split_idx]).reshape(-1, 1)
         B = np.array(action[split_idx:-2]).reshape(-1, 1)
 
@@ -183,9 +175,12 @@ class EnergyBalanceModelEnv(gym.Env):
         self.ebm.step_forward()
         self.climlab_ebm.step_forward()
 
-        costs = (
-            np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values
-        )[np.abs(self.ebm.lat - self.phi).argmin()] ** 2
+        costs = np.mean(
+            (np.array(self.ebm.Ts).reshape(-1) - self.Ts_ncep_annual.values)[
+                self.ebm_min_idx : self.ebm_max_idx
+            ]
+            ** 2
+        )
 
         self.state = self._get_state()
 
@@ -198,28 +193,28 @@ class EnergyBalanceModelEnv(gym.Env):
             a2=self.utils.a2_ref,
             D=self.utils.D_ref,
             A=np.array(
-                [
-                    self.utils.A_ref * 1e2
-                    for x in range(len(self.utils.Ts_ncep_annual))
-                ]
+                [self.utils.A_ref * 1e2 for x in range(EBM_LATITUDES)]
             ).reshape(-1, 1),
             B=np.array(
-                [
-                    self.utils.B_ref
-                    for x in range(len(self.utils.Ts_ncep_annual))
-                ]
+                [self.utils.B_ref for x in range(EBM_LATITUDES)]
             ).reshape(-1, 1),
-            num_lat=len(self.utils.lat_ncep),
+            num_lat=EBM_LATITUDES,
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0
         self.Ts_ncep_annual = self.utils.Ts_ncep_annual.interp(
             lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-        )
+        )  # NOTE: self.Ts_ncenp annual is DIFFERENT from self.utils.Ts_ncep_annual
 
         # Initialize a climlab EBM model clone
         self.climlab_ebm = climlab.process_like(self.ebm)
         self.climlab_ebm.name = "EBM Model"
+
+        self.ebm_min_idx, self.ebm_max_idx = (
+            self.seed * EBM_SUBLATITUDES,
+            (self.seed + 1) * EBM_SUBLATITUDES,
+        )
+        self.phi = self.ebm.lat[self.ebm_min_idx : self.ebm_max_idx]
 
         self.state = self._get_state()
         return self._get_obs(), self._get_info()
@@ -245,8 +240,8 @@ class EnergyBalanceModelEnv(gym.Env):
             ax1_labels,
             [
                 params[0],
-                np.mean(params[1 : len(self.utils.Ts_ncep_annual) + 1]),
-                np.mean(params[len(self.utils.Ts_ncep_annual) + 1 : -2]),
+                np.mean(params[1 : EBM_LATITUDES + 1]),
+                np.mean(params[EBM_LATITUDES + 1 : -2]),
                 *params[-2:],
             ],
             color=ax1_colors,

@@ -2,7 +2,7 @@ import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
 RL_ALGO = "ddpg"
-ENV_ID = "EnergyBalanceModel-v3"
+ENV_ID = "EnergyBalanceModel-v2"
 EPISODE_LENGTH = 200
 
 PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
@@ -28,13 +28,14 @@ Actor, Critic = getattr(
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, actor_critic_layer_size, cid):
+    def __init__(self, actor_critic_layer_size, cid, is_distributed):
         super().__init__()
         self.actor_layer_size = self.critic_layer_size = (
             actor_critic_layer_size
         )
         self.cid = cid
         self.seed = int(cid)
+        self.is_distributed = is_distributed
 
         # SmartRedis setup
         self.REDIS_ADDRESS = os.getenv("SSDB")
@@ -56,24 +57,26 @@ class FlowerClient(fl.client.NumPyClient):
         )
         cmd += "--capture_video_freq 50"
 
-        # # Check if the command is already running using `pgrep`
-        # check_cmd = f"pgrep -f '{cmd}'"
-        # is_alive = subprocess.run(
-        #     check_cmd,
-        #     shell=True,
-        #     stdout=subprocess.PIPE,
-        #     stderr=subprocess.PIPE,
-        # )
+        if not self.is_distributed:
+            # Check if the command is already running using `pgrep`
+            check_cmd = f"pgrep -f '{cmd}'"
+            is_alive = subprocess.run(
+                check_cmd,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
-        # # If no process is found, `pgrep` returns a non-zero exit code, so we start the process
-        # if is_alive.returncode != 0:
-        #     print(cmd, flush=True)
-        #     subprocess.Popen(cmd.split())
+            # If no process is found, `pgrep` returns a non-zero exit code, so we start the process
+            if is_alive.returncode != 0:
+                print(cmd, flush=True)
+                subprocess.Popen(cmd.split())
 
-        is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.seed}")
-        if not is_alive:
-            print(cmd, flush=True)
-            subprocess.Popen(cmd.split())
+        else:
+            is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.seed}")
+            if not is_alive:
+                print(cmd, flush=True)
+                subprocess.Popen(cmd.split())
 
         def make_env(env_id, seed):
             def thunk():
@@ -211,10 +214,12 @@ class FlowerClient(fl.client.NumPyClient):
         )
 
 
-def generate_client_fn(actor_critic_layer_size=256):
+def generate_client_fn(actor_critic_layer_size=256, is_distributed=False):
     def client_fn(context):
         return FlowerClient(
-            actor_critic_layer_size, int(context.node_config["partition-id"])
+            actor_critic_layer_size,
+            int(context.node_config["partition-id"]),
+            is_distributed,
         ).to_client()
 
     return client_fn

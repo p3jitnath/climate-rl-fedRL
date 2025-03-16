@@ -253,7 +253,7 @@ class EnergyBalanceModelEnv(gym.Env):
         )
 
         costs = np.mean(
-            (np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values)
+            (np.array(self.ebm.Ts).reshape(-1) - self.Ts_ncep_annual.values)
             ** 2
         )
 

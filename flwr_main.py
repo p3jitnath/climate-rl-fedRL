@@ -88,9 +88,12 @@ def main():
     )
     args = parser.parse_args()
     num_clients = args.num_clients
+    is_distributed = bool(int(os.environ.get("DISTRIBUTED", 0)))
 
     # Define the client function
-    client_fn = generate_client_fn(actor_critic_layer_size=256)
+    client_fn = generate_client_fn(
+        actor_critic_layer_size=256, is_distributed=is_distributed
+    )
 
     # Define the federated learning strategy
     strategy = FedAvgWithBuffer(
@@ -99,27 +102,22 @@ def main():
         fraction_evaluate=0.0,
     )
 
-    is_distributed = int(os.environ.get("DISTRIBUTED", 0))
-
-    # Calculate total CPU and GPU requirements only in the distributed case
-    if is_distributed:
+    # Calculate total CPU and GPU requirements only in the non-distributed case
+    ray_init_args = None
+    if not is_distributed:
         total_cpus = num_clients * 3 + 1  # Each client gets 3 CPUs + 1 extra
         total_gpus = 0  # math.ceil(num_clients * 0.25)
         ray_init_args = {
             "num_cpus": total_cpus,
             "num_gpus": total_gpus,
         }
-    else:
-        ray_init_args = None
 
     # Start the simulation
     fl.simulation.start_simulation(
         client_fn=client_fn,
         num_clients=num_clients,
         strategy=strategy,
-        ray_init_args=(
-            ray_init_args if os.environ["DISTRIBUTED"] == "1" else None
-        ),
+        ray_init_args=ray_init_args,
         client_resources={"num_cpus": 3, "num_gpus": 0},
         config=fl.server.ServerConfig(num_rounds=20),
     )
