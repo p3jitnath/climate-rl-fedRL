@@ -52,5 +52,5 @@ export DISTRIBUTED=0
 # fi
 
 # 1. Run smartsim
-cd f2py-climate-envs && pip install . && cd ..
+cd fedrl-climate-envs && pip install . && cd ..
 python run_smartsim.py

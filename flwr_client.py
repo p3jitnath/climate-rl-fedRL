@@ -1,6 +1,6 @@
 import sys
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 RL_ALGO = "ddpg"
 ENV_ID = "EnergyBalanceModel-v2"
 EPISODE_LENGTH = 200
@@ -16,7 +16,7 @@ import pickle
 import subprocess
 import sys
 
-import f2py_climate_envs
+import fedrl_climate_envs
 import flwr as fl
 import gymnasium as gym
 import numpy as np

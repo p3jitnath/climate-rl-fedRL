@@ -15,7 +15,7 @@ EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
 
 class Utils:
 
-    BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
+    BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
     DATASETS_DIR = f"{BASE_DIR}/datasets"
 
     fp_Ts = f"{DATASETS_DIR}/skt.sfc.mon.1981-2010.ltm.nc"

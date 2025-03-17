@@ -1,8 +1,8 @@
 #!/bin/sh
 
 #SBATCH --job-name=pn341_smartsim_slurm
-#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/slurm/ray_slurm_%j.out
-#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/slurm/ray_slurm_%j.err
+#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
+#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
 #SBATCH --nodes=3
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=3
@@ -10,7 +10,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --partition=par-single
 
-BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py
+BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 LOG_DIR="$BASE_DIR/slurm"
 
 set -x

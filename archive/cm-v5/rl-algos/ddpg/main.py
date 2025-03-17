@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-import f2py_climate_envs
+import fedrl_climate_envs
 import gymnasium as gym
 import numpy as np
 import torch
@@ -20,9 +20,9 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
 CLIMATE_RL_BASE_DIR = (
-    "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/climate-rl"
+    "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/climate-rl"
 )
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v5"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
 sys.path.append(CLIMATE_RL_BASE_DIR)
 sys.path.append(BASE_DIR)
 

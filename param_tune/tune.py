@@ -13,7 +13,7 @@ import tyro
 from ray import train, tune
 from ray.tune.search.optuna import OptunaSearch
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 sys.path.append(BASE_DIR)
 
 from param_tune.config import config

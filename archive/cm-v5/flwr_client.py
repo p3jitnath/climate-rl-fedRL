@@ -1,6 +1,6 @@
 import sys
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v5"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
 RL_ALGO = "ddpg"
 ENV_ID = "SimpleClimateBiasCorrection-v0"
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 
-import f2py_climate_envs
+import fedrl_climate_envs
 import flwr as fl
 import gymnasium as gym
 import numpy as np

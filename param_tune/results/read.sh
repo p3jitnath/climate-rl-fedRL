@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
+BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 runs=("$BASE_DIR"/param_tune/results/*v*)
 

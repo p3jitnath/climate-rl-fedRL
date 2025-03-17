@@ -2,7 +2,7 @@
 
 import sys
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 RL_ALGO = "ddpg"
 sys.path.append(f"{BASE_DIR}/climate-rl/rl-algos/{RL_ALGO}")
 
@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-import f2py_climate_envs
+import fedrl_climate_envs
 import gymnasium as gym
 import numpy as np
 import torch

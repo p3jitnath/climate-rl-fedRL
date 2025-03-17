@@ -11,15 +11,10 @@ from matplotlib.gridspec import GridSpec
 
 class Utils:
 
-    BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
+    BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
     DATASETS_DIR = f"{BASE_DIR}/datasets"
 
     fp_Ts = f"{DATASETS_DIR}/skt.sfc.mon.1981-2010.ltm.nc"
-    fp_ulwrf = f"{DATASETS_DIR}/ulwrf.ntat.mon.1981-2010.ltm.nc"
-    fp_dswrf = f"{DATASETS_DIR}/dswrf.ntat.mon.1981-2010.ltm.nc"
-    fp_uswrf = f"{DATASETS_DIR}/uswrf.ntat.mon.1981-2010.ltm.nc"
-    # fp_lf = f"{DATASETS_DIR}/nasa.landmet.anc.st.l3v1.zlf.nc"
-
     ncep_url = "http://www.esrl.noaa.gov/psd/thredds/dodsC/Datasets/ncep.reanalysis.derived/"
 
     def download_and_save_dataset(url, filepath, dataset_name):
@@ -41,33 +36,10 @@ class Utils:
         fp_Ts,
         "NCEP surface temperature",
     ).sortby("lat")
-    ncep_ulwrf = download_and_save_dataset(
-        ncep_url + "other_gauss/ulwrf.ntat.mon.1981-2010.ltm.nc",
-        fp_ulwrf,
-        "NCEP upwelling longwave radiation",
-    ).sortby("lat")
-    ncep_dswrf = download_and_save_dataset(
-        ncep_url + "other_gauss/dswrf.ntat.mon.1981-2010.ltm.nc",
-        fp_dswrf,
-        "NCEP downwelling shortwave radiation",
-    ).sortby("lat")
-    ncep_uswrf = download_and_save_dataset(
-        ncep_url + "other_gauss/uswrf.ntat.mon.1981-2010.ltm.nc",
-        fp_uswrf,
-        "NCEP upwelling shortwave radiation",
-    ).sortby("lat")
-
-    # print("Loading NASA land fraction data ...")
-    # nasa_lf = xr.open_dataset(fp_lf)
 
     lat_ncep = ncep_Ts.lat
     lon_ncep = ncep_Ts.lon
     Ts_ncep_annual = ncep_Ts.skt.mean(dim=("lon", "time"))
-
-    OLR_ncep_annual = ncep_ulwrf.ulwrf.mean(dim=("lon", "time"))
-    ASR_ncep_annual = (ncep_dswrf.dswrf - ncep_uswrf.uswrf).mean(
-        dim=("lon", "time")
-    )
 
     a0_ref = 0.354
     a2_ref = 0.25
@@ -87,90 +59,40 @@ class EnergyBalanceModelEnv(gym.Env):
 
         self.utils = Utils()
 
-        self.min_D = 0.55
-        self.max_D = 0.65
+        self.min_D = 0
+        self.max_D = 1.2
 
-        self.min_A = 1.4
+        self.min_A = 0
         self.max_A = 4.2
 
         self.min_B = 1.95
         self.max_B = 2.05
 
-        self.min_a0 = 0.3
-        self.max_a0 = 0.4
+        self.min_a0 = 0
+        self.max_a0 = 0.708
 
-        self.min_a2 = 0.2
-        self.max_a2 = 0.3
+        self.min_a2 = 0
+        self.max_a2 = 0.5
 
         self.min_temperature = -90
         self.max_temperature = 90
 
         self.action_space = spaces.Box(
             low=np.array(
-                [
-                    self.min_D,
-                    *[
-                        self.min_A
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    *[
-                        self.min_B
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    self.min_a0,
-                    self.min_a2,
-                ],
+                [self.min_D, self.min_A, self.min_B, self.min_a0, self.min_a2],
                 dtype=np.float32,
             ),
             high=np.array(
-                [
-                    self.max_D,
-                    *[
-                        self.max_A
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    *[
-                        self.max_B
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    self.max_a0,
-                    self.max_a2,
-                ],
+                [self.max_D, self.max_A, self.max_B, self.max_a0, self.max_a2],
                 dtype=np.float32,
             ),
-            shape=(3 + 2 * len(self.utils.Ts_ncep_annual),),
+            shape=(5,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
-            low=np.array(
-                [
-                    *[
-                        (
-                            self.min_temperature
-                        )  # (self.min_temperature, 0, -90)
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ]
-                ],
-                dtype=np.float32,
-            ).reshape(
-                -1,
-            ),
-            high=np.array(
-                [
-                    *[
-                        (
-                            self.max_temperature
-                        )  # (self.max_temperature, 100, 90)
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ]
-                ],
-                dtype=np.float32,
-            ).reshape(
-                -1,
-            ),
-            shape=(
-                1 * len(self.utils.Ts_ncep_annual),
-            ),  # (3 * len(Ts_ncep_annual),)
+            low=self.min_temperature,
+            high=self.max_temperature,
+            shape=(len(self.utils.lat_ncep),),
             dtype=np.float32,
         )
 
@@ -189,7 +111,7 @@ class EnergyBalanceModelEnv(gym.Env):
             ebm = self.ebm
         elif model == "climlab":
             ebm = self.climlab_ebm
-        temp = np.array(ebm.Ts, dtype=np.float32)
+        temp = np.array(ebm.Ts, dtype=np.float32).reshape(-1)
         return temp
 
     def _get_info(self):
@@ -202,38 +124,15 @@ class EnergyBalanceModelEnv(gym.Env):
             self.ebm.subprocess["albedo"].a0,
             self.ebm.subprocess["albedo"].a2,
         )
-        params = np.array(
-            [D, *(A.reshape(-1)), *(B.reshape(-1)), a0, a2], dtype=np.float32
-        )
+        params = np.array([D, A, B, a0, a2], dtype=np.float32)
         return params
 
     def _get_state(self):
-        # self.nasa_lf = (
-        #     self.utils.nasa_lf.interp(
-        #         lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-        #     )
-        #     .to_array()
-        #     .values.reshape(-1, 1)
-        # )
-
-        # state = np.concatenate(
-        #     (self._get_temp(), self.nasa_lf, self.ebm.lat.reshape(-1, 1)),
-        #     axis=1,
-        #     dtype=np.float32,
-        # )
-        # state = state.flatten()
-
-        state = self._get_temp().reshape(
-            -1,
-        )
+        state = self._get_temp()
         return state
 
     def step(self, action):
-        D, a0, a2 = action[0], action[-2], action[-1]
-        split_idx = 1 + len(self.utils.Ts_ncep_annual)
-        A = np.array(action[1:split_idx]).reshape(-1, 1)
-        B = np.array(action[split_idx:-2]).reshape(-1, 1)
-
+        D, A, B, a0, a2 = action[0], action[1], action[2], action[3], action[4]
         D = np.clip(D, self.min_D, self.max_D)
         A = np.clip(A, self.min_A, self.max_A)
         B = np.clip(B, self.min_B, self.max_B)
@@ -248,18 +147,13 @@ class EnergyBalanceModelEnv(gym.Env):
 
         self.ebm.step_forward()
         self.climlab_ebm.step_forward()
-        self.Ts_ncep_annual = self.utils.Ts_ncep_annual.interp(
-            lat=self.ebm.lat, kwargs={"fill_value": "extrapolate"}
-        )
 
         costs = np.mean(
-            (np.array(self.ebm.Ts).reshape(-1) - self.Ts_ncep_annual.values)
+            (np.array(self.ebm.Ts.reshape(-1)) - self.Ts_ncep_annual.values)[
+                15:-15
+            ]
             ** 2
-        )
-
-        # costs += np.mean(
-        #     (np.squeeze(self.ebm.ASR - self.ebm.OLR) - (ASR_ncep_annual - OLR_ncep_annual)).to_numpy() ** 2
-        # )
+        )  # Discard poles
 
         self.state = self._get_state()
 
@@ -271,18 +165,8 @@ class EnergyBalanceModelEnv(gym.Env):
             a0=self.utils.a0_ref,
             a2=self.utils.a2_ref,
             D=self.utils.D_ref,
-            A=np.array(
-                [
-                    self.utils.A_ref * 1e2
-                    for x in range(len(self.utils.Ts_ncep_annual))
-                ]
-            ).reshape(-1, 1),
-            B=np.array(
-                [
-                    self.utils.B_ref
-                    for x in range(len(self.utils.Ts_ncep_annual))
-                ]
-            ).reshape(-1, 1),
+            A=self.utils.A_ref * 1e2,
+            B=self.utils.B_ref,
             num_lat=len(self.utils.lat_ncep),
             name="EBM Model w/ RL",
         )
@@ -317,12 +201,7 @@ class EnergyBalanceModelEnv(gym.Env):
         ]
         ax1_bars = ax1.bar(
             ax1_labels,
-            [
-                params[0],
-                np.mean(params[1 : len(self.utils.Ts_ncep_annual) + 1]),
-                np.mean(params[len(self.utils.Ts_ncep_annual) + 1 : -2]),
-                *params[-2:],
-            ],
+            [*params],
             color=ax1_colors,
             width=0.75,
         )

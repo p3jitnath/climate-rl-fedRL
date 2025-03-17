@@ -5,8 +5,8 @@ import psutil
 from smartsim import Experiment
 from smartsim.status import SmartSimStatus
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py"
-ENVIRONMENT_DIR = f"{BASE_DIR}/f2py-climate-envs/f2py_climate_envs/envs"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+ENVIRONMENT_DIR = f"{BASE_DIR}/fedrl-climate-envs/fedrl_climate_envs/envs"
 PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
 
 FLWR_EXE = "flwr_main.py"

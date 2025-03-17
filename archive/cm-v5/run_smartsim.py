@@ -4,8 +4,8 @@ import time
 from smartsim import Experiment
 from smartsim.status import SmartSimStatus
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/cm-v5"
-SCM_EXECUTABLE = "f2py-climate-envs/f2py_climate_envs/envs/scm.o"
+BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
+SCM_EXECUTABLE = "fedrl-climate-envs/fedrl_climate_envs/envs/scm.o"
 FLWR_SCRIPT = "flwr_main.py"
 SEEDS = [x for x in range(4)]  # Add more seeds here if needed
 

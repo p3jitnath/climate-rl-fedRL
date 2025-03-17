@@ -1,8 +1,8 @@
 #!/bin/sh
 
 #SBATCH --job-name=pn341_ray_slurm_optimise
-#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/slurm/ray_slurm_%j.out
-#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py/slurm/ray_slurm_%j.err
+#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
+#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
@@ -11,7 +11,7 @@
 #SBATCH --partition=orchid
 #SBATCH --account=orchid
 
-BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-f2py
+BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 
 set -x
 
