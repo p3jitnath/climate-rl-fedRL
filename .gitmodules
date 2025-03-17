@@ -1,3 +1,0 @@
-[submodule "climate-rl"]
-	path = climate-rl
-	url = git@github.com:p3jitnath/climate-rl.git

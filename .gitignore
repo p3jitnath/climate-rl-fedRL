@@ -183,6 +183,7 @@ steps/
 *.out
 wandb/
 slurm/
+weights/
 
 *_run_*
 *test*

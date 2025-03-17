@@ -24,6 +24,7 @@ sys.path.append(BASE_DIR)
 
 from smartredis import Client
 
+from fedrl.fedrl import FedRL
 from param_tune.utils.no_op_summary_writer import NoOpSummaryWriter
 
 os.environ["WANDB__SERVICE_WAIT"] = "600"
@@ -247,171 +248,22 @@ start_time = time.time()
 # initialise for federated learning
 if args.flwr_client is not None:
 
-    class FedRL:
-        def __init__(
-            self, actor, critic, flwr_client, flwr_actor, flwr_critic
-        ):
-            self.actor = actor
-            self.critic = critic
-            self.flwr_client = flwr_client
-
-            self.new_rb_entries = []
-            self.global_rb = None
-            self.flwr_actor = flwr_actor
-            self.flwr_critic = flwr_critic
-
-            # SmartRedis setup
-            self.REDIS_ADDRESS = os.getenv("SSDB")
-            if self.REDIS_ADDRESS is None:
-                raise EnvironmentError("SSDB environment variable is not set.")
-            self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
-            print(
-                f"[RL Agent] Connected to Redis server: {self.REDIS_ADDRESS}",
-                flush=True,
-            )
-
-        # load the latest weights from Redis
-        def load_weights(self):
-            # 1. Actor
-            if self.flwr_actor:
-                # Wait for signal that weights are available
-                while not self.redis.tensor_exists(
-                    f"actor_network_weights_g2c_s{args.seed}"
-                ):
-                    pass
-
-                # Retrieve and reshape weights tensor based on Actor's structure
-                actor_weights = self.redis.get_tensor(
-                    f"actor_network_weights_g2c_s{args.seed}"
-                )
-                # print('[RL Agent] Actor', args.seed, 'L', actor_weights[0:5], flush=True)
-
-                old_actor_params = [
-                    param.clone().detach() for param in self.actor.parameters()
-                ]
-
-                offset = 0
-                for param in self.actor.parameters():
-                    size = np.prod(param.shape)
-                    param.data.copy_(
-                        torch.tensor(
-                            actor_weights[offset : offset + size].reshape(
-                                param.shape
-                            )
-                        )
-                    )
-                    offset += size
-
-                actor_diff_norm = sum(
-                    torch.norm(old - new)
-                    for old, new in zip(
-                        old_actor_params, self.actor.parameters()
-                    )
-                )
-                print(f"[RL Agent] Actor norm: {actor_diff_norm}")
-
-                # Clear weights and signal to reset for the next round
-                self.redis.delete_tensor(
-                    f"actor_network_weights_g2c_s{args.seed}"
-                )
-
-            # 2. Critic
-            if self.flwr_critic:
-                # Wait for signal that weights are available
-                while not self.redis.tensor_exists(
-                    f"critic_network_weights_g2c_s{args.seed}"
-                ):
-                    pass
-
-                # Retrieve and reshape weights tensor based on Critic's structure
-                critic_weights = self.redis.get_tensor(
-                    f"critic_network_weights_g2c_s{args.seed}"
-                )
-                # print('[RL Agent] Critic', args.seed, 'L', critic_weights[0:5], flush=True)
-
-                old_critic_params = [
-                    param.clone().detach()
-                    for param in self.critic.parameters()
-                ]
-
-                offset = 0
-                for param in self.critic.parameters():
-                    size = np.prod(param.shape)
-                    param.data.copy_(
-                        torch.tensor(
-                            critic_weights[offset : offset + size].reshape(
-                                param.shape
-                            )
-                        )
-                    )
-                    offset += size
-
-                critic_diff_norm = sum(
-                    torch.norm(old - new)
-                    for old, new in zip(
-                        old_critic_params, self.critic.parameters()
-                    )
-                )
-                print(f"[RL Agent] Critic norm: {critic_diff_norm}")
-
-                # Clear weights and signal to reset for the next round
-                self.redis.delete_tensor(
-                    f"critic_network_weights_g2c_s{args.seed}"
-                )
-
-        # save updated weights to Redis
-        def save_weights(self):
-            # 1. Actor
-            actor_weights = np.concatenate(
-                [
-                    param.data.cpu().numpy().flatten()
-                    for param in self.actor.parameters()
-                ]
-            )
-            self.redis.put_tensor(
-                f"actor_network_weights_c2g_s{args.seed}", actor_weights
-            )
-            # print('[RL Agent] Actor', args.seed, 'S', weights[0:5], flush=True)
-
-            # 2. Critic
-            critic_weights = np.concatenate(
-                [
-                    param.data.cpu().numpy().flatten()
-                    for param in self.critic.parameters()
-                ]
-            )
-            self.redis.put_tensor(
-                f"critic_network_weights_c2g_s{args.seed}", critic_weights
-            )
-            # print('[RL Agent] Critic', args.seed, 'S', weights[0:5], flush=True)
-
-        # load the current global replay buffer from Redis
-        def load_replay_buffer(self):
-            # Wait for signal that aggregatd replay buffer is available
-            while not self.redis.tensor_exists("replay_buffer_global"):
-                pass
-
-            # Retrieve the global replay buffer tensor
-            self.global_rb = self.redis.get_tensor("replay_buffer_global")
-            self.global_rb = pickle.loads(self.global_rb.tobytes())
-
-        # save the new replay buffer entries to Redis
-        def save_new_replay_buffer_entries(self):
-            self.redis.put_tensor(
-                f"new_replay_buffer_entries_c2g_s{args.seed}",
-                np.frombuffer(
-                    pickle.dumps(self.new_rb_entries), dtype=np.uint8
-                ),
-            )
-            self.new_rb_entries = []
+    weights_folder = BASE_DIR + f"/weights/{run_name}"
+    os.makedirs(weights_folder, exist_ok=True)
 
     fedRL = FedRL(
-        actor, qf1, args.flwr_client, args.flwr_actor, args.flwr_critic
+        args.seed,
+        actor,
+        qf1,
+        args.flwr_client,
+        args.flwr_actor,
+        args.flwr_critic,
+        weights_folder,
     )
 
     # save the current initial actor weights when using federated learning
     # print('[RL Agent]', args.seed, "saving local actor weights", flush=True)
-    fedRL.save_weights()
+    fedRL.save_weights(0)
 
     # load the new actor weights from the global server
     # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
@@ -534,7 +386,7 @@ for global_step in range(1, args.total_timesteps + 1):
             for info in infos["final_info"]:
                 # save the current actor and/or critic weights when using federated learning
                 # print('[RL Agent]', args.seed, "saving local weights", flush=True)
-                fedRL.save_weights()
+                fedRL.save_weights(global_step)
 
                 # send the new replay buffer additions to the global server
                 # print('[RL Agent]', args.seed, "saving new local replay buffer entries", flush=True)
