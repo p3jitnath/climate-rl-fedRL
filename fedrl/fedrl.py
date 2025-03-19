@@ -39,7 +39,7 @@ class FedRL:
         )
 
     # load the latest weights from Redis
-    def load_weights(self):
+    def load_weights(self, step_count):
         # 1. Actor
         if self.flwr_actor:
             # Wait for signal that weights are available
@@ -69,6 +69,12 @@ class FedRL:
                     )
                 )
                 offset += size
+
+            if self.weights_folder:
+                torch.save(
+                    self.actor.state_dict(),
+                    f"{self.weights_folder}/actor/actor-fedRL-{step_count}.pt",
+                )
 
             actor_diff_norm = sum(
                 torch.norm(old - new)
@@ -109,6 +115,12 @@ class FedRL:
                 )
                 offset += size
 
+            if self.weights_folder:
+                torch.save(
+                    self.actor.state_dict(),
+                    f"{self.weights_folder}/critic/critic-fedRL-{step_count}.pt",
+                )
+
             critic_diff_norm = sum(
                 torch.norm(old - new)
                 for old, new in zip(
@@ -137,7 +149,7 @@ class FedRL:
         if self.weights_folder:
             torch.save(
                 self.actor.state_dict(),
-                f"{self.weights_folder}/actor-{step_count}.pt",
+                f"{self.weights_folder}/actor/actor-{step_count}.pt",
             )
         # print('[RL Agent] Actor', self.seed, 'S', weights[0:5], flush=True)
 
@@ -154,7 +166,7 @@ class FedRL:
         if self.weights_folder:
             torch.save(
                 self.actor.state_dict(),
-                f"{self.weights_folder}/critic-{step_count}.pt",
+                f"{self.weights_folder}/critic/critic-{step_count}.pt",
             )
         # print('[RL Agent] Critic', self.seed, 'S', weights[0:5], flush=True)
 

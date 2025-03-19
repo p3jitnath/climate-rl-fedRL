@@ -22,8 +22,6 @@ from torch.utils.tensorboard import SummaryWriter
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 sys.path.append(BASE_DIR)
 
-from smartredis import Client
-
 from fedrl.fedrl import FedRL
 from param_tune.utils.no_op_summary_writer import NoOpSummaryWriter
 
@@ -143,7 +141,7 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
                 env = gym.make(env_id, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(
                 env,
-                f"videos/{run_name}",
+                f"{BASE_DIR}/videos/{run_name}",
                 episode_trigger=lambda x: (x == 0)
                 or (
                     x % capture_video_freq == (capture_video_freq - 1)
@@ -165,7 +163,7 @@ args = tyro.cli(Args)
 run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
 if args.record_steps:
-    steps_folder = BASE_DIR + f"/steps/{run_name}"
+    steps_folder = f"{BASE_DIR}/steps/{run_name}"
     os.makedirs(steps_folder, exist_ok=True)
     steps_buffer = []
 
@@ -186,7 +184,7 @@ if args.track:
 if args.optimise:
     writer = NoOpSummaryWriter()
 else:
-    writer = SummaryWriter(f"runs/{run_name}")
+    writer = SummaryWriter(f"{BASE_DIR}/runs/{run_name}")
 
 writer.add_text(
     "hyperparameters",
@@ -248,8 +246,9 @@ start_time = time.time()
 # initialise for federated learning
 if args.flwr_client is not None:
 
-    weights_folder = BASE_DIR + f"/weights/{run_name}"
-    os.makedirs(weights_folder, exist_ok=True)
+    weights_folder = f"{BASE_DIR}/weights/{run_name}"
+    os.makedirs(f"{weights_folder}/actor", exist_ok=True)
+    os.makedirs(f"{weights_folder}/critic", exist_ok=True)
 
     fedRL = FedRL(
         args.seed,
@@ -267,7 +266,7 @@ if args.flwr_client is not None:
 
     # load the new actor weights from the global server
     # print('[RL Agent]', args.seed, "loading global actor weights", flush=True)
-    fedRL.load_weights()
+    fedRL.load_weights(0)
 
 # 1. start the game
 obs, _ = envs.reset(seed=args.seed)
@@ -394,7 +393,7 @@ for global_step in range(1, args.total_timesteps + 1):
 
                 # load the new actor and/or critic weights from the global server
                 # print('[RL Agent]', args.seed, "loading global weights", flush=True)
-                fedRL.load_weights()
+                fedRL.load_weights(global_step)
 
                 # load the aggregated new replay buffer
                 # print('[RL Agent]', args.seed, "loading global replay buffer", flush=True)

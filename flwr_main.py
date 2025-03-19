@@ -119,7 +119,9 @@ def main():
         strategy=strategy,
         ray_init_args=ray_init_args,
         client_resources={"num_cpus": 3, "num_gpus": 0},
-        config=fl.server.ServerConfig(num_rounds=20),
+        config=fl.server.ServerConfig(
+            num_rounds=21
+        ),  # +1 to have an extra round
     )
 
 

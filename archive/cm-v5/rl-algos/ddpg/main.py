@@ -175,7 +175,7 @@ if args.track:
 if args.optimise:
     writer = NoOpSummaryWriter()
 else:
-    writer = SummaryWriter(f"runs/{run_name}")
+    writer = SummaryWriter(f"{BASE_DIR}/runs/{run_name}")
 
 writer.add_text(
     "hyperparameters",
