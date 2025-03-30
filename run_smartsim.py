@@ -9,7 +9,7 @@ BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 ENVIRONMENT_DIR = f"{BASE_DIR}/fedrl-climate-envs/fedrl_climate_envs/envs"
 PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
 
-FLWR_EXE = "flwr_main.py"
+FLWR_EXE = "flwr/flwr_main.py"
 SCM_EXE = "scm.o"
 CLIMLAB_EXE = "climlab_ebm.py"
 
@@ -99,7 +99,7 @@ def main():
 
     # SBATCH_ARGS["export"] = FLWR_SBATCH_ARGS["export"] = f"SSDB={redis_port}"
 
-    # Generate the batch settings
+    # Generate batch settings
     # batch_settings = exp.create_batch_settings(batch_args=SBATCH_ARGS)
     # flwr_batch_settings = exp.create_batch_settings(
     #     batch_args=FLWR_SBATCH_ARGS

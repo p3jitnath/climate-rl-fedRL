@@ -3,12 +3,12 @@ import math
 import os
 import pickle
 
-import flwr as fl
 import numpy as np
 import smartredis
-from flwr.common import FitIns
-
 from flwr_client import generate_client_fn
+
+import flwr as fl
+from flwr.common import FitIns
 
 
 class FedAvgWithBuffer(fl.server.strategy.FedAvg):

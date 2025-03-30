@@ -27,10 +27,11 @@ import subprocess
 import sys
 
 import fedrl_climate_envs
-import flwr as fl
 import gymnasium as gym
 import numpy as np
 import smartredis
+
+import flwr as fl
 
 Agent = Actor = Critic = None
 if RL_ALGO == "ppo":
