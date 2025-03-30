@@ -14,8 +14,8 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
-from ddpg_actor import Actor
-from ddpg_critic import Critic
+from dpg_actor import Actor
+from dpg_critic import Critic
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
@@ -32,7 +32,7 @@ date = time.strftime("%Y-%m-%d", time.gmtime(time.time()))
 
 @dataclass
 class Args:
-    exp_name: str = "ddpg_torch"
+    exp_name: str = "dpg_torch"
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
@@ -73,8 +73,8 @@ class Args:
     """timestep to start learning"""
     policy_frequency: int = 2
     """the frequency of training policy (delayed)"""
-    noise_clip: float = 0.5
-    """noise clip parameter of the Target Policy Smoothing Regularization"""
+    # noise_clip: float = 0.5
+    # """noise clip parameter of the Target Policy Smoothing Regularization"""
 
     optimise: bool = False
     """whether to modify output for hyperparameter optimisation"""
@@ -92,8 +92,6 @@ class Args:
 
     num_steps: int = 200
     """the number of steps to run in each environment per policy rollout"""
-    record_steps: bool = False
-    """whether to record steps for policy analysis"""
 
     flwr_client: Optional[int] = None
     """flwr client id for Federated Learning"""
@@ -163,11 +161,6 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
 args = tyro.cli(Args)
 run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
-if args.record_steps:
-    steps_folder = f"{BASE_DIR}/steps/{run_name}"
-    os.makedirs(steps_folder, exist_ok=True)
-    steps_buffer = []
-
 if args.track:
     import wandb
 
@@ -224,23 +217,23 @@ assert isinstance(
 
 actor = Actor(envs, args.actor_layer_size).to(device)
 qf1 = Critic(envs, args.critic_layer_size).to(device)
-qf1_target = Critic(envs, args.critic_layer_size).to(device)
-target_actor = Actor(envs, args.actor_layer_size).to(device)
+# qf1_target = Critic(envs, args.critic_layer_size).to(device)
+# target_actor = Actor(envs, args.actor_layer_size).to(device)
 
-target_actor.load_state_dict(actor.state_dict())
-qf1_target.load_state_dict(qf1.state_dict())
+# target_actor.load_state_dict(actor.state_dict())
+# qf1_target.load_state_dict(qf1.state_dict())
 
 q_optimizer = optim.Adam(list(qf1.parameters()), lr=args.learning_rate)
 actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
 
 envs.single_observation_space.dtype = np.float32
-rb = ReplayBuffer(
-    args.buffer_size,
-    envs.single_observation_space,
-    envs.single_action_space,
-    device,
-    handle_timeout_termination=False,
-)
+# rb = ReplayBuffer(
+#     args.buffer_size,
+#     envs.single_observation_space,
+#     envs.single_action_space,
+#     device,
+#     handle_timeout_termination=False,
+# )
 
 start_time = time.time()
 
@@ -275,23 +268,19 @@ if args.flwr_client is not None:
 obs, _ = envs.reset(seed=args.seed)
 for global_step in range(1, args.total_timesteps + 1):
     # 2. retrieve action(s)
-    if global_step < args.learning_starts:
-        actions = np.array(
-            [envs.single_action_space.sample() for _ in range(envs.num_envs)]
+    # if global_step < args.learning_starts:
+    #     actions = np.array(
+    #         [envs.single_action_space.sample() for _ in range(envs.num_envs)]
+    #     )
+    # else:
+    with torch.no_grad():
+        actions = actor(torch.Tensor(obs).to(device))
+        actions += torch.normal(0, actor.action_scale * args.exploration_noise)
+        actions = (
+            actions.cpu()
+            .numpy()
+            .clip(envs.single_action_space.low, envs.single_action_space.high)
         )
-    else:
-        with torch.no_grad():
-            actions = actor(torch.Tensor(obs).to(device))
-            actions += torch.normal(
-                0, actor.action_scale * args.exploration_noise
-            )
-            actions = (
-                actions.cpu()
-                .numpy()
-                .clip(
-                    envs.single_action_space.low, envs.single_action_space.high
-                )
-            )
 
     # 3. execute the game and log data
     next_obs, rewards, terminations, truncations, infos = envs.step(actions)
@@ -310,78 +299,91 @@ for global_step in range(1, args.total_timesteps + 1):
             )
             break
 
-    # 4. save data to replay buffer
-    real_next_obs = next_obs.copy()
-    for idx, trunc in enumerate(truncations):
-        if trunc:
-            real_next_obs[idx] = infos["final_observation"][idx]
-    rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
-    if args.flwr_client is not None:
-        fedRL.new_rb_entries.append(
-            [obs, real_next_obs, actions, rewards, terminations, infos]
+    # # 4. [skip] save data to replay buffer
+    # real_next_obs = next_obs.copy()
+    # for idx, trunc in enumerate(truncations):
+    #     if trunc:
+    #         real_next_obs[idx] = infos["final_observation"][idx]
+    # rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+    # if args.flwr_client is not None:
+    #     fedRL.new_rb_entries.append(
+    #         [obs, real_next_obs, actions, rewards, terminations, infos]
+    #     )
+
+    # 5. training
+    # if global_step > args.learning_starts:
+
+    # # 5a. [skip] calculate the target_q_values to compare with
+    # data = rb.sample(args.batch_size)
+    # with torch.no_grad():
+    #     next_state_actions = target_actor(data.next_observations)
+    #     qf1_next_target = qf1_target(
+    #         data.next_observations, next_state_actions
+    #     )
+    #     target_q_values = data.rewards.flatten() + (
+    #         1 - data.dones.flatten()
+    #     ) * args.gamma * (qf1_next_target).view(-1)
+
+    # qf1_a_values = qf1(data.observations, data.actions).view(-1)
+    # qf1_loss = F.mse_loss(qf1_a_values, target_q_values)
+
+    # 5a. calculate the q_values to compare with
+    to_device = lambda *x: [torch.Tensor(t).to(device) for t in x]
+    obs, next_obs, actions, rewards, terminations = to_device(
+        obs, next_obs, actions, rewards, terminations
+    )
+
+    with torch.no_grad():
+        next_state_actions = actor(next_obs)
+        qf1_next = qf1(next_obs, next_state_actions)
+        q_values = rewards.flatten() + (
+            1 - terminations.flatten()
+        ) * args.gamma * (qf1_next).view(-1)
+
+    qf1_a_values = qf1(obs, actions).view(-1)
+    qf1_loss = F.mse_loss(qf1_a_values, q_values)
+
+    # 5b. update the critic
+    q_optimizer.zero_grad()
+    qf1_loss.backward()
+    q_optimizer.step()
+
+    # 5c. update the actor network
+    if global_step % args.policy_frequency == 0:
+        actor_loss = -qf1(obs, actor(obs)).mean()
+        actor_optimizer.zero_grad()
+        actor_loss.backward()
+        actor_optimizer.step()
+
+    # # 5d. [skip] soft-update the target networks
+    # if global_step % args.policy_frequency == 0:
+    #     for param, target_param in zip(
+    #         actor.parameters(), target_actor.parameters()
+    #     ):
+    #         target_param.data.copy_(
+    #             args.tau * param.data + (1 - args.tau) * target_param.data
+    #         )
+    #     for param, target_param in zip(
+    #         qf1.parameters(), qf1_target.parameters()
+    #     ):
+    #         target_param.data.copy_(
+    #             args.tau * param.data + (1 - args.tau) * target_param.data
+    #         )
+
+    if global_step % 100 == 0:
+        writer.add_scalar(
+            "losses/qf1_values", qf1_a_values.mean().item(), global_step
+        )
+        writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
+        writer.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
+        # print("SPS:", int(global_step / (time.time() - start_time)), flush=True)
+        writer.add_scalar(
+            "charts/SPS",
+            int(global_step / (time.time() - start_time)),
+            global_step,
         )
 
     obs = next_obs
-
-    # 5. training
-    if global_step > args.learning_starts:
-        # 5a. calculate the target_q_values to compare with
-        data = rb.sample(args.batch_size)
-        with torch.no_grad():
-            next_state_actions = target_actor(data.next_observations)
-            qf1_next_target = qf1_target(
-                data.next_observations, next_state_actions
-            )
-            target_q_values = data.rewards.flatten() + (
-                1 - data.dones.flatten()
-            ) * args.gamma * (qf1_next_target).view(-1)
-
-        qf1_a_values = qf1(data.observations, data.actions).view(-1)
-        qf1_loss = F.mse_loss(qf1_a_values, target_q_values)
-
-        # 5b. update the critic
-        q_optimizer.zero_grad()
-        qf1_loss.backward()
-        q_optimizer.step()
-
-        # 5c. update the actor network
-        if global_step % args.policy_frequency == 0:
-            actor_loss = -qf1(
-                data.observations, actor(data.observations)
-            ).mean()
-            actor_optimizer.zero_grad()
-            actor_loss.backward()
-            actor_optimizer.step()
-
-        # 5d. soft-update the target networks
-        if global_step % args.policy_frequency == 0:
-            for param, target_param in zip(
-                actor.parameters(), target_actor.parameters()
-            ):
-                target_param.data.copy_(
-                    args.tau * param.data + (1 - args.tau) * target_param.data
-                )
-            for param, target_param in zip(
-                qf1.parameters(), qf1_target.parameters()
-            ):
-                target_param.data.copy_(
-                    args.tau * param.data + (1 - args.tau) * target_param.data
-                )
-
-        if global_step % 100 == 0:
-            writer.add_scalar(
-                "losses/qf1_values", qf1_a_values.mean().item(), global_step
-            )
-            writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
-            writer.add_scalar(
-                "losses/actor_loss", actor_loss.item(), global_step
-            )
-            # print("SPS:", int(global_step / (time.time() - start_time)), flush=True)
-            writer.add_scalar(
-                "charts/SPS",
-                int(global_step / (time.time() - start_time)),
-                global_step,
-            )
 
     if args.flwr_client is not None and "final_info" in infos:
         if global_step % (args.flwr_episodes * args.num_steps) == 0:
@@ -421,22 +423,6 @@ for global_step in range(1, args.total_timesteps + 1):
                     },
                     file,
                 )
-
-    if args.record_steps:
-        step_info = {
-            "global_step": global_step,
-            "actions": actions,
-            "next_obs": next_obs,
-            "rewards": rewards,
-        }
-        steps_buffer += [step_info]
-        if global_step % args.num_steps == (args.num_steps - 1):
-            with open(f"{steps_folder}/step_{global_step}.pkl", "wb") as file:
-                pickle.dump(
-                    steps_buffer,
-                    file,
-                )
-            steps_buffer = []
 
 envs.close()
 writer.close()

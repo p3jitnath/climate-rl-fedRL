@@ -14,9 +14,9 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
-from ddpg_actor import Actor
-from ddpg_critic import Critic
 from stable_baselines3.common.buffers import ReplayBuffer
+from td3_actor import Actor
+from td3_critic import Critic
 from torch.utils.tensorboard import SummaryWriter
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
@@ -32,7 +32,7 @@ date = time.strftime("%Y-%m-%d", time.gmtime(time.time()))
 
 @dataclass
 class Args:
-    exp_name: str = "ddpg_torch"
+    exp_name: str = "td3_torch"
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
@@ -54,7 +54,7 @@ class Args:
     """episode frequency at which to capture video"""
 
     env_id: str = "SimpleClimateBiasCorrection-v0"
-    """the environment id of the environment"""
+    """the id of the environment"""
     total_timesteps: int = 60000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
@@ -67,6 +67,8 @@ class Args:
     """target smoothing coefficient (default: 0.005)"""
     batch_size: int = 256
     """the batch size of sample from the replay memory"""
+    policy_noise: float = 0.2
+    """the scale of policy noise"""
     exploration_noise: float = 0.1
     """the scale of exploration noise"""
     learning_starts: int = 1000
@@ -224,13 +226,18 @@ assert isinstance(
 
 actor = Actor(envs, args.actor_layer_size).to(device)
 qf1 = Critic(envs, args.critic_layer_size).to(device)
+qf2 = Critic(envs, args.critic_layer_size).to(device)
 qf1_target = Critic(envs, args.critic_layer_size).to(device)
+qf2_target = Critic(envs, args.critic_layer_size).to(device)
 target_actor = Actor(envs, args.actor_layer_size).to(device)
 
 target_actor.load_state_dict(actor.state_dict())
 qf1_target.load_state_dict(qf1.state_dict())
+qf2_target.load_state_dict(qf2.state_dict())
 
-q_optimizer = optim.Adam(list(qf1.parameters()), lr=args.learning_rate)
+q_optimizer = optim.Adam(
+    list(qf1.parameters()) + list(qf2.parameters()), lr=args.learning_rate
+)
 actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
 
 envs.single_observation_space.dtype = np.float32
@@ -255,7 +262,7 @@ if args.flwr_client is not None:
         args.seed,
         None,
         actor,
-        [qf1],
+        [qf1, qf2],
         args.flwr_client,
         None,
         args.flwr_actor,
@@ -328,20 +335,40 @@ for global_step in range(1, args.total_timesteps + 1):
         # 5a. calculate the target_q_values to compare with
         data = rb.sample(args.batch_size)
         with torch.no_grad():
-            next_state_actions = target_actor(data.next_observations)
+            clipped_noise = (
+                torch.randn_like(data.actions, device=device)
+                * args.policy_noise
+            )
+            clipped_noise = (
+                clipped_noise.clamp(-args.noise_clip, args.noise_clip)
+                * target_actor.action_scale
+            )
+            next_state_actions = (
+                target_actor(data.next_observations) + clipped_noise
+            )
+            next_state_actions = next_state_actions.clamp(
+                envs.single_action_space.low[0],
+                envs.single_action_space.high[0],
+            )
             qf1_next_target = qf1_target(
                 data.next_observations, next_state_actions
             )
+            qf2_next_target = qf2_target(
+                data.next_observations, next_state_actions
+            )
+            min_qf_next_target = torch.min(qf1_next_target, qf2_next_target)
             target_q_values = data.rewards.flatten() + (
                 1 - data.dones.flatten()
-            ) * args.gamma * (qf1_next_target).view(-1)
+            ) * args.gamma * (min_qf_next_target).view(-1)
 
+        # 5b. update both the critics
         qf1_a_values = qf1(data.observations, data.actions).view(-1)
+        qf2_a_values = qf2(data.observations, data.actions).view(-1)
         qf1_loss = F.mse_loss(qf1_a_values, target_q_values)
-
-        # 5b. update the critic
+        qf2_loss = F.mse_loss(qf2_a_values, target_q_values)
+        qf_loss = qf1_loss + qf2_loss
         q_optimizer.zero_grad()
-        qf1_loss.backward()
+        qf_loss.backward()
         q_optimizer.step()
 
         # 5c. update the actor network
@@ -367,12 +394,25 @@ for global_step in range(1, args.total_timesteps + 1):
                 target_param.data.copy_(
                     args.tau * param.data + (1 - args.tau) * target_param.data
                 )
+            for param, target_param in zip(
+                qf2.parameters(), qf2_target.parameters()
+            ):
+                target_param.data.copy_(
+                    args.tau * param.data + (1 - args.tau) * target_param.data
+                )
 
         if global_step % 100 == 0:
             writer.add_scalar(
                 "losses/qf1_values", qf1_a_values.mean().item(), global_step
             )
+            writer.add_scalar(
+                "losses/qf2_values", qf2_a_values.mean().item(), global_step
+            )
             writer.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
+            writer.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
+            writer.add_scalar(
+                "losses/qf_loss", qf_loss.item() / 2.0, global_step
+            )
             writer.add_scalar(
                 "losses/actor_loss", actor_loss.item(), global_step
             )

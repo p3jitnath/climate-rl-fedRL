@@ -66,7 +66,7 @@ class Args:
     """whether to record steps for policy analysis"""
     flwr_actor: bool = True
     """whether to use actor network weights"""
-    flwr_critic: bool = False
+    flwr_critics: bool = False
     """whether to use critic network weights"""
 
     weights_path: str = None
