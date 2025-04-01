@@ -88,11 +88,12 @@ def main():
 
     # Retrieve Redis port and start Redis database
     interfaces = list(psutil.net_if_addrs().keys())
+    print("Available network interfaces:", interfaces, flush=True)
     redis_model = exp.create_database(
-        port=get_redis_port(), interface=interfaces[0]
+        port=get_redis_port(), interface=interfaces[1]
     )
     print(
-        f"Running Redis database on {os.getenv('SSDB')} via {interfaces[0]}",
+        f"Running Redis database on {os.getenv('SSDB')} via {interfaces[1]}",
         flush=True,
     )
     exp.start(redis_model)

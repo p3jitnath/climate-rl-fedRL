@@ -8,7 +8,9 @@
 #SBATCH --cpus-per-task=3
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=24:00:00
-#SBATCH --partition=par-single
+#SBATCH --account=ai4er
+#SBATCH --partition=highres
+#SBATCH --qos=highres
 
 BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 LOG_DIR="$BASE_DIR/slurm"
@@ -41,8 +43,13 @@ fi
 
 # __doc_head_address_end__
 
-port=6479
-redis_port=6380
+port=$(shuf -i 6380-6580 -n 1)
+
+k=$(shuf -i 20-55 -n 1)
+min_port=$((k * 1000))
+max_port=$((min_port + 999))
+
+redis_port=$(shuf -i 6280-6480 -n 1)
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
@@ -55,6 +62,7 @@ echo "SSDB: $SSDB"
 echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
     ray start --head --node-ip-address="$head_node_ip" --port=$port \
+    --min-worker-port $min_port --max-worker-port $max_port \
     --num-cpus "${SLURM_CPUS_PER_TASK}" --include-dashboard=False --block & \
     --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
     --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err"
@@ -70,6 +78,7 @@ for ((i = 1; i <= worker_num; i++)); do
     echo "Starting WORKER $i at $node_i"
     srun --nodes=1 --ntasks=1 -w "$node_i" \
         ray start --address "$ip_head" \
+        --min-worker-port $min_port --max-worker-port $max_port \
         --num-cpus "${SLURM_CPUS_PER_TASK}" --block & \
         --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
         --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err"

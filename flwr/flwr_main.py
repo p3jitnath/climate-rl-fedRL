@@ -89,6 +89,7 @@ def main():
     args = parser.parse_args()
     num_clients = args.num_clients
     is_distributed = bool(int(os.environ.get("DISTRIBUTED", 0)))
+    print("is_distributed:", is_distributed, flush=True)
 
     # Define the client function
     client_fn = generate_client_fn(
@@ -120,7 +121,7 @@ def main():
         ray_init_args=ray_init_args,
         client_resources={"num_cpus": 3, "num_gpus": 0},
         config=fl.server.ServerConfig(
-            num_rounds=6
+            num_rounds=21
         ),  # +1 to have 1 extra round # steps = num_rounds * 200 * flwr_episodes
     )
 

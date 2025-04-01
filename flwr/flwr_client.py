@@ -2,7 +2,7 @@ import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 RL_ALGO = "avg"  # "avg", "dpg", "ddpg", "reinforce", "sac", "tqc", "td3", "ppo", "trpo"
-ENV_ID = "EnergyBalanceModel-v2"
+ENV_ID = "EnergyBalanceModel-v3"
 EPISODE_LENGTH = 200
 
 CRITIC_ALGOS = [
@@ -97,9 +97,9 @@ class FlowerClient(fl.client.NumPyClient):
             if is_alive.returncode != 0:
                 print(cmd, flush=True)
                 subprocess.Popen(cmd.split())
-
         else:
             is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.seed}")
+            print("is_alive:", is_alive, flush=True)
             if not is_alive:
                 print(cmd, flush=True)
                 subprocess.Popen(cmd.split())

@@ -98,7 +98,7 @@ class EnergyBalanceModelEnv(gym.Env):
             f"SIGALIVE_S{self.seed}", np.array([1], dtype=np.int32)
         )
 
-        # self.reset()
+        # self.reset(self.seed)
 
     def _get_params(self):
         return np.array([self.A, self.B], dtype=np.float32)

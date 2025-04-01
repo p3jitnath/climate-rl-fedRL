@@ -113,7 +113,8 @@ class EnergyBalanceModelEnv(gym.Env):
         )
 
         self.render_mode = render_mode
-        self.reset()
+
+        # self.reset(self.seed)
 
     def _get_obs(self):
         return self._get_state()

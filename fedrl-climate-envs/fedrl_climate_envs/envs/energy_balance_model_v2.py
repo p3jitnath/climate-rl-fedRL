@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 from gymnasium import spaces
 from matplotlib.gridspec import GridSpec
+from smartredis import Client
 
 EBM_LATITUDES = 90
 NUM_SEEDS = 2
@@ -122,7 +123,19 @@ class EnergyBalanceModelEnv(gym.Env):
         )
 
         self.render_mode = render_mode
-        self.reset()
+
+        # SmartRedis setup
+        self.REDIS_ADDRESS = os.getenv("SSDB")
+        if self.REDIS_ADDRESS is None:
+            raise EnvironmentError("SSDB environment variable is not set.")
+        self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
+        print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
+
+        self.redis.put_tensor(
+            f"SIGALIVE_S{self.seed}", np.array([1], dtype=np.int32)
+        )
+
+        # self.reset(self.seed)
 
     def _get_obs(self):
         return self._get_state()
