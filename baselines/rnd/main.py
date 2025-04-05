@@ -1,4 +1,3 @@
-import importlib
 import os
 import pickle
 import random
@@ -11,6 +10,7 @@ import gymnasium as gym
 import numpy as np
 import torch
 import tyro
+from rnd_actor import Actor
 from torch.utils.tensorboard import SummaryWriter
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
@@ -23,14 +23,12 @@ date = time.strftime("%Y-%m-%d", time.gmtime(time.time()))
 
 @dataclass
 class Args:
-    exp_name: str = "fedRL_inference_torch"
+    exp_name: str = "rnd_torch"
     """the name of this experiment"""
     seed: int = 1
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
-    cuda: bool = True
-    """if toggled, cuda will be enabled by default"""
     track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
     wandb_project_name: str = "cleanRL"
@@ -44,27 +42,17 @@ class Args:
     capture_video_freq: int = 100
     """episode frequency at which to capture video"""
 
-    env_id: str = "EnergyBalanceModel-v2"
+    env_id: str = "EnergyBalanceModel-v1"
     """the environment id of the environment"""
-    algo: str = "ddpg"
+    algo: str = "rnd"
     """the RL algorithm to be used"""
     total_timesteps: int = 200
     """total timesteps of the experiments"""
-
-    actor_layer_size: int = 256
-    """layer size for the actor network"""
 
     num_steps: int = 200
     """the number of steps to run in each environment per policy rollout"""
     record_steps: bool = False
     """whether to record steps for policy analysis"""
-    flwr_actor: bool = True
-    """whether to use actor network weights"""
-    flwr_critics: bool = False
-    """whether to use critic network weights"""
-
-    weights_path: str
-    """path to load the actor network weights"""
 
 
 def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
@@ -92,13 +80,6 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
         return env
 
     return thunk
-
-
-def get_actor(algo):
-    module_path = f"rl-algos.{algo}.{algo}_actor"
-    actor_module = importlib.import_module(module_path)
-    Actor = getattr(actor_module, "Actor")
-    return Actor
 
 
 args = tyro.cli(Args)
@@ -136,11 +117,7 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 torch.backends.cudnn.deterministic = args.torch_deterministic
 
-device = torch.device(
-    "cuda" if torch.cuda.is_available() and args.cuda else "cpu"
-)
-print(f"device: {device}", flush=True)
-print(f"actor layer size: {args.actor_layer_size}", flush=True)
+print("device: cpu", flush=True)
 
 # 0. env setup
 envs = gym.vector.SyncVectorEnv(
@@ -159,10 +136,7 @@ assert isinstance(
     envs.single_action_space, gym.spaces.Box
 ), "only continuous action space is supported"
 
-Actor = get_actor(args.algo)
-actor = Actor(envs, args.actor_layer_size).to(device)
-if args.weights_path:
-    actor.load_state_dict(torch.load(args.weights_path, device))
+actor = Actor(envs, np.nan)
 
 envs.single_observation_space.dtype = np.float32
 start_time = time.time()
@@ -173,7 +147,7 @@ for global_step in range(1, args.total_timesteps + 1):
 
     # 2. retrieve action(s)
     with torch.no_grad():
-        actions = actor(torch.Tensor(obs).to(device))
+        actions = actor(obs)
         actions = (
             actions.cpu()
             .numpy()

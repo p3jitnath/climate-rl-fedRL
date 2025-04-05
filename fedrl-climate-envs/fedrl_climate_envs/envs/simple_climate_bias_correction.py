@@ -150,6 +150,9 @@ class SimpleClimateBiasCorrectionEnv(gym.Env):
         """Returns the current observation (temperature)."""
         return np.array([self.state[0]], dtype=np.float32)
 
+    def get_target_state(self):
+        return np.array([(321.75 - 273.15) / 100], dtype=np.float32)
+
     def render(self):
         if self.render_mode == "rgb_array":
             return self._render_frame()

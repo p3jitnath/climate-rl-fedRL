@@ -173,6 +173,9 @@ class EnergyBalanceModelEnv(gym.Env):
 
         return self._get_obs(), -costs, False, False, self._get_info()
 
+    def get_target_state(self):
+        return np.array(self.Ts_ncep_annual.values[15:-15])
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.ebm = climlab.EBM_annual(

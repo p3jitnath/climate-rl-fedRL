@@ -145,9 +145,7 @@ class EnergyBalanceModelEnv(gym.Env):
             low=np.array(
                 [
                     *[
-                        (
-                            self.min_temperature
-                        )  # (self.min_temperature, 0, -90)
+                        (self.min_temperature)
                         for x in range(len(self.utils.Ts_ncep_annual))
                     ]
                 ],
@@ -158,9 +156,7 @@ class EnergyBalanceModelEnv(gym.Env):
             high=np.array(
                 [
                     *[
-                        (
-                            self.max_temperature
-                        )  # (self.max_temperature, 100, 90)
+                        (self.max_temperature)
                         for x in range(len(self.utils.Ts_ncep_annual))
                     ]
                 ],
@@ -265,6 +261,9 @@ class EnergyBalanceModelEnv(gym.Env):
         self.state = self._get_state()
 
         return self._get_obs(), -costs, False, False, self._get_info()
+
+    def get_target_state(self):
+        return np.array(self.Ts_ncep_annual.values)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
