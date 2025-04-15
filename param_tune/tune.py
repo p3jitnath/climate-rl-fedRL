@@ -66,7 +66,7 @@ def objective(config):
     while not os.path.exists(results_path):
         time.sleep(60)
         counter += 1
-        if counter >= 360:
+        if counter >= 2 * 60:
             raise RuntimeError("An error has occured.")
 
     with open(results_path, "rb") as f:

@@ -104,4 +104,4 @@ for ((i = 1; i <= worker_num; i++)); do
     sleep 30
 done
 
-python -u $BASE_DIR/param_tune/tune.py --algo $ALGO --exp_id "ebm-v0-optim-L" --env_id "EnergyBalanceModel-v0" --opt_timesteps 10000 --num_steps 200 # --actor_layer_size 64 --critic_layer_size 64
+python -u $BASE_DIR/param_tune/tune.py --algo $ALGO --exp_id "ebm-v1-optim-L" --env_id "EnergyBalanceModel-v1" --opt_timesteps 10000 --num_steps 200 # --actor_layer_size 64 --critic_layer_size 64
