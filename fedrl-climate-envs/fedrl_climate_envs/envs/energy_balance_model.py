@@ -8,6 +8,8 @@ import xarray as xr
 from gymnasium import spaces
 from matplotlib.gridspec import GridSpec
 
+EBM_LATITUDES = 96
+
 
 class Utils:
 
@@ -104,7 +106,7 @@ class EnergyBalanceModelEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=self.min_temperature,
             high=self.max_temperature,
-            shape=(len(self.utils.lat_ncep),),
+            shape=(EBM_LATITUDES,),
             dtype=np.float32,
         )
 
@@ -184,7 +186,7 @@ class EnergyBalanceModelEnv(gym.Env):
             D=self.utils.D_ref,
             A=self.utils.A_ref * 1e2,
             B=self.utils.B_ref,
-            num_lat=len(self.utils.lat_ncep),
+            num_lat=EBM_LATITUDES,
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0

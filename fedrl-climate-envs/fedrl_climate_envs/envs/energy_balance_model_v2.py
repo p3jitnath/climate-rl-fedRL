@@ -9,7 +9,7 @@ from gymnasium import spaces
 from matplotlib.gridspec import GridSpec
 from smartredis import Client
 
-EBM_LATITUDES = 90
+EBM_LATITUDES = 96
 NUM_SEEDS = 2
 EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
 

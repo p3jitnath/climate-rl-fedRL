@@ -93,7 +93,7 @@ trainable = tune.with_resources(objective, resources={"cpu": 1, "gpu": 0})
 
 RESULTS_DIR = f"{BASE_DIR}/baselines/optuna/results/{args.exp_id}-optuna"
 if not os.path.exists(RESULTS_DIR):
-    os.makedirs(RESULTS_DIR)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
 
 storage_path = f"{RESULTS_DIR}/{args.algo}_run_{date}"
 

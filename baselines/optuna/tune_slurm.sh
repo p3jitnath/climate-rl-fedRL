@@ -18,7 +18,7 @@ set -x
 
 # 1a. Function to display usage
 usage() {
-    echo "Usage: sbatch $1 --env_id <env_id>"
+    echo "Usage: sbatch $1 --exp_id <exp_id> --env_id <env_id>"
     exit 1
 }
 
@@ -30,7 +30,11 @@ fi
 # 1c. Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --env_id) # Extract the env_id value
+        --exp_id)
+            EXP_ID="$2"
+            shift 2
+            ;;
+        --env_id)
             ENV_ID="$2"
             shift 2
             ;;
@@ -40,9 +44,13 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
-# 1d. Check if ENV_ID is set
-if [ -z "$ENV_ID" ]; then
-    echo "Error: Environment is required."
+# 1d: Print parsed values (for debugging)
+echo "exp_id: $EXP_ID"
+echo "env_id: $ENV_ID"
+
+# 1e. Check if all flags are set
+if [ -z "$EXP_ID" ] || [ -z "$ENV_ID" ]; then
+    echo "Error: All flags are required."
     usage
 fi
 
@@ -104,4 +112,4 @@ for ((i = 1; i <= worker_num; i++)); do
     sleep 30
 done
 
-python -u $BASE_DIR/baselines/optuna/tune.py --env_id $ENV_ID
+python -u $BASE_DIR/baselines/optuna/tune.py --exp_id $EXP_ID --env_id $ENV_ID

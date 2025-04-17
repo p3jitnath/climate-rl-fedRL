@@ -18,7 +18,7 @@ set -x
 
 # 1a. Function to display usage
 usage() {
-    echo "Usage: sbatch $1 --algo <algo>"
+    echo "Usage: sbatch script.sh --algo <algo> --exp_id <exp_id> --env_id <env_id> --opt_timesteps <steps> --num_steps <steps>"
     exit 1
 }
 
@@ -30,19 +30,43 @@ fi
 # 1c. Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --algo) # Extract the algo value
+        --algo)
             ALGO="$2"
             shift 2
             ;;
-        *) # Handle unknown option
+        --exp_id)
+            EXP_ID="$2"
+            shift 2
+            ;;
+        --env_id)
+            ENV_ID="$2"
+            shift 2
+            ;;
+        --opt_timesteps)
+            OPT_TIMESTEPS="$2"
+            shift 2
+            ;;
+        --num_steps)
+            NUM_STEPS="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown parameter passed: $1"
             usage
             ;;
     esac
 done
 
-# 1d. Check if ALGO is set
-if [ -z "$ALGO" ]; then
-    echo "Error: Algo is required."
+# 1d: Print parsed values (for debugging)
+echo "algo: $ALGO"
+echo "exp_id: $EXP_ID"
+echo "env_id: $ENV_ID"
+echo "opt_timesteps: $OPT_TIMESTEPS"
+echo "num_steps: $NUM_STEPS"
+
+# 1e. Check if all flags are set
+if [ -z "$ALGO" ] || [ -z "$EXP_ID" ] || [ -z "$ENV_ID" ] || [ -z "$OPT_TIMESTEPS" ] || [ -z "$NUM_STEPS" ]; then
+    echo "Error: All flags are required."
     usage
 fi
 
@@ -104,4 +128,4 @@ for ((i = 1; i <= worker_num; i++)); do
     sleep 30
 done
 
-python -u $BASE_DIR/param_tune/tune.py --algo $ALGO --exp_id "ebm-v1-optim-L" --env_id "EnergyBalanceModel-v1" --opt_timesteps 10000 --num_steps 200 # --actor_layer_size 64 --critic_layer_size 64
+python -u $BASE_DIR/param_tune/tune.py --algo $ALGO --exp_id $EXP_ID --env_id $ENV_ID --opt_timesteps $OPT_TIMESTEPS --num_steps $NUM_STEPS # --actor_layer_size 64 --critic_layer_size 64

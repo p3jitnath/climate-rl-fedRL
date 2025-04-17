@@ -27,7 +27,12 @@ for fn in glob.glob(f"{ENV_DIR}/best_*.pkl"):
         metrics = pickle.load(file)
 
     subset_dict = {}
-    subset_dict["params"] = list(metrics["config"]["params"].values())
+    subset_dict["params"] = list(
+        [
+            metrics["config"]["params"][f"param_{x}"]
+            for x in range(len(metrics["config"]["params"]))
+        ]
+    )
     subset_dict["algo"] = algo
     subset_dict["date"] = date
     subset_dict["episodic_return"] = float(metrics["episodic_return"])

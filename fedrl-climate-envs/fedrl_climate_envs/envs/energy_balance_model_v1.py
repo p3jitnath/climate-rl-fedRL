@@ -8,6 +8,8 @@ import xarray as xr
 from gymnasium import spaces
 from matplotlib.gridspec import GridSpec
 
+EBM_LATITUDES = 96
+
 
 class Utils:
 
@@ -109,14 +111,8 @@ class EnergyBalanceModelEnv(gym.Env):
             low=np.array(
                 [
                     # self.min_D,
-                    *[
-                        self.min_A
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    *[
-                        self.min_B
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
+                    *[self.min_A for x in range(EBM_LATITUDES)],
+                    *[self.min_B for x in range(EBM_LATITUDES)],
                     # self.min_a0,
                     # self.min_a2,
                 ],
@@ -125,48 +121,30 @@ class EnergyBalanceModelEnv(gym.Env):
             high=np.array(
                 [
                     # self.max_D,
-                    *[
-                        self.max_A
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
-                    *[
-                        self.max_B
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ],
+                    *[self.max_A for x in range(EBM_LATITUDES)],
+                    *[self.max_B for x in range(EBM_LATITUDES)],
                     # self.max_a0,
                     # self.max_a2,
                 ],
                 dtype=np.float32,
             ),
-            shape=(2 * len(self.utils.Ts_ncep_annual),),
+            shape=(2 * EBM_LATITUDES,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
             low=np.array(
-                [
-                    *[
-                        (self.min_temperature)
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ]
-                ],
+                [*[(self.min_temperature) for x in range(EBM_LATITUDES)]],
                 dtype=np.float32,
             ).reshape(
                 -1,
             ),
             high=np.array(
-                [
-                    *[
-                        (self.max_temperature)
-                        for x in range(len(self.utils.Ts_ncep_annual))
-                    ]
-                ],
+                [*[(self.max_temperature) for x in range(EBM_LATITUDES)]],
                 dtype=np.float32,
             ).reshape(
                 -1,
             ),
-            shape=(
-                1 * len(self.utils.Ts_ncep_annual),
-            ),  # (3 * len(Ts_ncep_annual),)
+            shape=(1 * EBM_LATITUDES,),  # (3 * EBM_LATITUDES,)
             dtype=np.float32,
         )
 
@@ -227,7 +205,7 @@ class EnergyBalanceModelEnv(gym.Env):
 
     def step(self, action):
         # D, a0, a2 = action[0], action[-2], action[-1]
-        split_idx = len(self.utils.Ts_ncep_annual)
+        split_idx = EBM_LATITUDES
         A = np.array(action[:split_idx]).reshape(-1, 1)
         B = np.array(action[split_idx:]).reshape(-1, 1)
 
@@ -272,18 +250,12 @@ class EnergyBalanceModelEnv(gym.Env):
             a2=self.utils.a2_ref,
             D=self.utils.D_ref,
             A=np.array(
-                [
-                    self.utils.A_ref * 1e2
-                    for x in range(len(self.utils.Ts_ncep_annual))
-                ]
+                [self.utils.A_ref * 1e2 for x in range(EBM_LATITUDES)]
             ).reshape(-1, 1),
             B=np.array(
-                [
-                    self.utils.B_ref
-                    for x in range(len(self.utils.Ts_ncep_annual))
-                ]
+                [self.utils.B_ref for x in range(EBM_LATITUDES)]
             ).reshape(-1, 1),
-            num_lat=len(self.utils.lat_ncep),
+            num_lat=EBM_LATITUDES,
             name="EBM Model w/ RL",
         )
         self.ebm.Ts[:] = 50.0
@@ -316,8 +288,8 @@ class EnergyBalanceModelEnv(gym.Env):
             ax1_labels,
             [
                 # params[0],
-                np.mean(params[: len(self.utils.Ts_ncep_annual)]),
-                np.mean(params[len(self.utils.Ts_ncep_annual) :]),
+                np.mean(params[:EBM_LATITUDES]),
+                np.mean(params[EBM_LATITUDES:]),
                 # *params[-2:],
             ],
             color=ax1_colors,
