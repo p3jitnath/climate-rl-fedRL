@@ -10,7 +10,7 @@ import gymnasium as gym
 import numpy as np
 import torch
 import tyro
-from rnd_actor import Actor
+from sp_actor import Actor
 from torch.utils.tensorboard import SummaryWriter
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
