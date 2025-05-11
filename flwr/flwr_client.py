@@ -1,9 +1,13 @@
+import os
 import sys
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
-RL_ALGO = "avg"  # "avg", "dpg", "ddpg", "reinforce", "sac", "tqc", "td3", "ppo", "trpo"
-ENV_ID = "EnergyBalanceModel-v3"
 EPISODE_LENGTH = 200
+
+RL_ALGO = os.getenv("RL_ALGO")
+ENV_ID = os.getenv("ENV_ID")
+WANDB_GROUP = os.getenv("WANDB_GROUP")
+OPTIM_GROUP = os.getenv("OPTIM_GROUP")
 
 CRITIC_ALGOS = [
     ("avg", 1),
@@ -21,10 +25,8 @@ sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
 
 
 import importlib
-import os
 import pickle
 import subprocess
-import sys
 
 import fedrl_climate_envs
 import gymnasium as gym
@@ -75,7 +77,10 @@ class FlowerClient(fl.client.NumPyClient):
             flush=True,
         )
 
-        cmd = f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --env_id {ENV_ID} --num_steps {EPISODE_LENGTH} """
+        cmd = (
+            f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py""" + " "
+        )
+        cmd += f"""--env_id {ENV_ID} --wandb_group {WANDB_GROUP} --num_steps {EPISODE_LENGTH} """
         cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
         cmd += (
             f"--actor_layer_size {self.actor_layer_size} --critic_layer_size {self.critic_layer_size}"

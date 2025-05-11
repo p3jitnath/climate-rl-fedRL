@@ -9,8 +9,8 @@
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=24:00:00
 #SBATCH --account=ai4er
-#SBATCH --partition=highres
-#SBATCH --qos=highres
+#SBATCH --partition=standard
+#SBATCH --qos=high
 
 BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 LOG_DIR="$BASE_DIR/slurm"
@@ -21,6 +21,41 @@ set -x
 
 # checking the conda environment
 echo "PYTHON: $(which python)"
+
+# parse command-line arguments
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --rl_algo)
+      export RL_ALGO="$2"
+      shift 2
+      ;;
+    --env_id)
+      export ENV_ID="$2"
+      shift 2
+      ;;
+    --tag)
+      export TAG="$2"
+      shift 2
+      ;;
+    --wandb_group)
+      export WANDB_GROUP="$2"
+      shift 2
+      ;;
+    --) # explicit end of args
+      shift
+      break
+      ;;
+    *)
+      # any other flags (e.g. SBATCH overrides) stop parsing here
+      break
+      ;;
+  esac
+done
+
+echo "RL_ALGO: $RL_ALGO"
+echo "ENVIRONMENT_ID: $ENV_ID"
+echo "TAG: $TAG"
+echo "WANDB_GROUP: $WANDB_GROUP"
 
 # getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")

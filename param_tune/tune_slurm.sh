@@ -9,8 +9,8 @@
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=24:00:00
 #SBATCH --account=ai4er
-#SBATCH --partition=highres
-#SBATCH --qos=highres
+#SBATCH --partition=standard
+#SBATCH --qos=high
 
 BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 

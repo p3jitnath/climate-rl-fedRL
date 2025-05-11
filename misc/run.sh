@@ -71,7 +71,7 @@ for ALGO in "${ALGOS[@]}"; do
 conda activate venv
 cd "$BASE_DIR"
 export WANDB_MODE=offline
-python -u "$BASE_DIR/rl-algos/$ALGO/main.py" --env_id "$ENV_ID" --optim_group "$TAG" --wandb_group "$WANDB_GROUP" --total_timesteps 20000 --num_steps 200 --capture_video_freq 10
+python -u "$BASE_DIR/rl-algos/$ALGO/main.py" --env_id "$ENV_ID" --optim_group "$TAG" --wandb_group "$WANDB_GROUP" --no-track --total_timesteps 20000 --num_steps 200 --capture_video_freq 10
 EOT
-    sleep 60
+    # sleep 60
 done

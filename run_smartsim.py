@@ -13,6 +13,9 @@ FLWR_EXE = "flwr/flwr_main.py"
 SCM_EXE = "scm.o"
 CLIMLAB_EXE = "climlab_ebm.py"
 
+RL_ALGO = os.getenv("RL_ALGO")
+WANDB_GROUP = os.getenv("WANDB_GROUP")
+
 NUM_SEEDS = 2
 SEEDS = [x for x in range(NUM_SEEDS)]  # Add more seeds here if needed
 
@@ -84,7 +87,9 @@ def wait_for_completion(exp, models, label=""):
 
 def main():
     # Initialise SmartSim Experiment
-    exp = Experiment("SM-FLWR_Orchestrator", launcher="local")
+    exp = Experiment(
+        f"SM-FLWR_Orchestrator_{RL_ALGO}_{WANDB_GROUP}", launcher="local"
+    )
 
     # Retrieve Redis port and start Redis database
     interfaces = list(psutil.net_if_addrs().keys())
@@ -119,13 +124,13 @@ def main():
     #     )
     #     scm_models.append(model)
 
-    ebm_model = create_and_start_model(
-        exp,
-        "EBM",
-        PYTHON_EXE,
-        [f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}", "--num_seeds", f"{len(SEEDS)}"],
-        block=False,
-    )
+    # ebm_model = create_and_start_model(
+    #     exp,
+    #     "EBM",
+    #     PYTHON_EXE,
+    #     [f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}", "--num_seeds", f"{len(SEEDS)}"],
+    #     block=False,
+    # )
 
     # Start FLWR orchestrator
     flwr_model = create_and_start_model(
@@ -141,7 +146,7 @@ def main():
 
     # Stop all processes after completion
     # exp.stop(*scm_models)
-    exp.stop(ebm_model)
+    # exp.stop(ebm_model)
     exp.stop(redis_model)
     print("Experiment completed successfully.", flush=True)
 
