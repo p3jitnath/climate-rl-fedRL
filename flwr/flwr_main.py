@@ -92,9 +92,7 @@ def main():
     print("is_distributed:", is_distributed, flush=True)
 
     # Define the client function
-    client_fn = generate_client_fn(
-        actor_critic_layer_size=256, is_distributed=is_distributed
-    )
+    client_fn = generate_client_fn(is_distributed=is_distributed)
 
     # Define the federated learning strategy
     strategy = FedAvgWithBuffer(

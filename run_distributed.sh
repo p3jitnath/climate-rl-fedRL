@@ -8,7 +8,7 @@ rm -rf SM-FLWR_Orchestrator_*
 
 # 1a. Function to display usage
 usage() {
-    echo "Usage: $0 --tag <tag> --env_id <env_id>"
+    echo "Usage: $0 --tag <tag> --env_id <env_id> [--optim_group <optim_group>] [--flwr_actor <true|false>] [--flwr_critics <true|false>]"
     exit 1
 }
 
@@ -17,7 +17,12 @@ if [ "$#" -eq 0 ]; then
     usage
 fi
 
-# 1c. Parse command-line arguments
+# 1c. Set default values
+FLWR_ACTOR=true
+FLWR_CRITICS=false
+OPTIM_GROUP=""
+
+# 1d. Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --tag) # Extract the tag value
@@ -28,19 +33,31 @@ while [[ "$#" -gt 0 ]]; do
             ENV_ID="$2"
             shift 2
             ;;
+        --optim_group) # Extract the optim_group value
+            OPTIM_GROUP="$2"
+            shift 2
+            ;;
+        --flwr_actor) # Extract the flwr_actor bool value
+            FLWR_ACTOR="$2"
+            shift 2
+            ;;
+        --flwr_critics) # Extract the flwr_critics bool value
+            FLWR_CRITICS="$2"
+            shift 2
+            ;;
         *) # Handle unknown option
             usage
             ;;
     esac
 done
 
-# 1d. Check if TAG is set
+# 1e. Check if TAG is set
 if [ -z "$TAG" ]; then
     echo "Error: Tag is required."
     usage
 fi
 
-# 1e. Check if ENV_ID is set
+# 1f. Check if ENV_ID is set
 if [ -z "$ENV_ID" ]; then
     echo "Error: Environment id is required."
     usage
@@ -59,5 +76,11 @@ NOW=$(date +%F_%H-%M)
 for ALGO in "${ALGOS[@]}"; do
     WANDB_GROUP="${TAG}_${NOW}"
     # Submit each algorithm run as a separate Slurm job
-    sbatch slurm_smartsim.sh --rl_algo $ALGO --env_id $ENV_ID --tag $TAG --wandb_group $WANDB_GROUP
+    sbatch slurm_smartsim.sh \
+           --rl_algo   "$ALGO" \
+           --env_id    "$ENV_ID" \
+           ${OPTIM_GROUP:+--optim_group "$OPTIM_GROUP"} \
+           --wandb_group  "$WANDB_GROUP" \
+           --flwr_actor   "$FLWR_ACTOR" \
+           --flwr_critics "$FLWR_CRITICS"
 done

@@ -33,12 +33,20 @@ while [ $# -gt 0 ]; do
       export ENV_ID="$2"
       shift 2
       ;;
-    --tag)
-      export TAG="$2"
+    --optim_group)
+      export OPTIM_GROUP="$2"
       shift 2
       ;;
     --wandb_group)
       export WANDB_GROUP="$2"
+      shift 2
+      ;;
+    --flwr_actor)
+      export FLWR_ACTOR="$2"
+      shift 2
+      ;;
+    --flwr_critics)
+      export FLWR_CRITICS="$2"
       shift 2
       ;;
     --) # explicit end of args
@@ -56,6 +64,9 @@ echo "RL_ALGO: $RL_ALGO"
 echo "ENVIRONMENT_ID: $ENV_ID"
 echo "TAG: $TAG"
 echo "WANDB_GROUP: $WANDB_GROUP"
+echo "FLWR_ACTOR: $FLWR_ACTOR"
+echo "FLWR_CRITICS: $FLWR_CRITICS"
+echo "OPTIM_GROUP: $OPTIM_GROUP"
 
 # getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")

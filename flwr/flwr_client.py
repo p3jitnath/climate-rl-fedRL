@@ -1,5 +1,7 @@
+import json
 import os
 import sys
+from distutils.util import strtobool
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 EPISODE_LENGTH = 200
@@ -7,7 +9,9 @@ EPISODE_LENGTH = 200
 RL_ALGO = os.getenv("RL_ALGO")
 ENV_ID = os.getenv("ENV_ID")
 WANDB_GROUP = os.getenv("WANDB_GROUP")
-OPTIM_GROUP = os.getenv("OPTIM_GROUP")
+OPTIM_GROUP = os.getenv("OPTIM_GROUP", None)
+FLWR_ACTOR = bool(strtobool(os.getenv("FLWR_ACTOR")))
+FLWR_CRITICS = bool(strtobool(os.getenv("FLWR_CRITICS")))
 
 CRITIC_ALGOS = [
     ("avg", 1),
@@ -56,11 +60,9 @@ for algo, count in CRITIC_ALGOS:
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, actor_critic_layer_size, cid, is_distributed):
+    def __init__(self, cid, is_distributed):
         super().__init__()
-        self.actor_layer_size = self.critic_layer_size = (
-            actor_critic_layer_size
-        )
+
         self.cid = cid
         self.seed = int(cid)
         self.is_distributed = is_distributed
@@ -77,16 +79,44 @@ class FlowerClient(fl.client.NumPyClient):
             flush=True,
         )
 
+        if OPTIM_GROUP:
+            with open(
+                f"{BASE_DIR}/param_tune/results/{OPTIM_GROUP}/best_results.json",
+                "r",
+            ) as file:
+                opt_params = {
+                    k: v
+                    for k, v in json.load(file)[RL_ALGO].items()
+                    if k not in {"algo", "episodic_return", "date"}
+                }
+                for key, value in opt_params.items():
+                    if key == "actor_critic_layer_size":
+                        actor_critic_layer_size = value
+                        break
+        else:
+            actor_critic_layer_size = 256
+
+        self.actor_layer_size = self.critic_layer_size = (
+            actor_critic_layer_size
+        )
+
         cmd = (
             f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py""" + " "
         )
         cmd += f"""--env_id {ENV_ID} --wandb_group {WANDB_GROUP} --num_steps {EPISODE_LENGTH} """
         cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
+        cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
         cmd += (
-            f"--actor_layer_size {self.actor_layer_size} --critic_layer_size {self.critic_layer_size}"
+            f"--critic_layer_size {self.critic_layer_size} --capture_video_freq 50"
             + " "
         )
-        cmd += "--capture_video_freq 50"
+
+        for name, enabled in (
+            ("flwr_actor", FLWR_ACTOR),
+            ("flwr_critics", FLWR_CRITICS),
+        ):
+            prefix = "" if enabled else "no-"
+            cmd += f"--{prefix}{name}" + " "
 
         if not self.is_distributed:
             # Check if the command is already running using `pgrep`
@@ -310,10 +340,9 @@ class FlowerClient(fl.client.NumPyClient):
         )
 
 
-def generate_client_fn(actor_critic_layer_size=256, is_distributed=False):
+def generate_client_fn(is_distributed=False):
     def client_fn(context):
         return FlowerClient(
-            actor_critic_layer_size,
             int(context.node_config["partition-id"]),
             is_distributed,
         ).to_client()
