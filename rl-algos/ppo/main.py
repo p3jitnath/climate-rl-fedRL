@@ -189,6 +189,10 @@ args.minibatch_size = int(args.batch_size // args.num_minibatches)
 args.num_iterations = args.total_timesteps // args.batch_size
 run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
+if not args.optimise:
+    records_folder = f"{BASE_DIR}/records/{run_name}"
+    os.makedirs(records_folder, exist_ok=True)
+
 if args.track:
     import wandb
 
@@ -339,6 +343,10 @@ for iteration in range(1, args.num_iterations + 1):
                         info["episode"]["l"],
                         global_step,
                     )
+                    with open(
+                        f"{records_folder}/step_{global_step}.pkl", "wb"
+                    ) as file:
+                        pickle.dump(obs, file)
                     break
 
     # 4. bootstrap value if not done

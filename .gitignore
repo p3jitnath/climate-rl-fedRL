@@ -184,6 +184,7 @@ steps/
 wandb/
 slurm/
 weights/
+records/
 
 *_run_*
 *test*

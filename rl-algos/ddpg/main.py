@@ -163,6 +163,10 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
 args = tyro.cli(Args)
 run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
+if not args.optimise:
+    records_folder = f"{BASE_DIR}/records/{run_name}"
+    os.makedirs(records_folder, exist_ok=True)
+
 if args.record_steps:
     steps_folder = f"{BASE_DIR}/steps/{run_name}"
     os.makedirs(steps_folder, exist_ok=True)
@@ -308,6 +312,10 @@ for global_step in range(1, args.total_timesteps + 1):
             writer.add_scalar(
                 "charts/episodic_length", info["episode"]["l"], global_step
             )
+            with open(
+                f"{records_folder}/step_{global_step}.pkl", "wb"
+            ) as file:
+                pickle.dump(obs, file)
             break
 
     # 4. save data to replay buffer
