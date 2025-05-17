@@ -10,8 +10,8 @@ from matplotlib.gridspec import GridSpec
 from smartredis import Client
 
 EBM_LATITUDES = 96
-NUM_SEEDS = 2
-EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
+NUM_EBM = 2
+EBM_SUBLATITUDES = EBM_LATITUDES // NUM_EBM
 
 
 class Utils:
@@ -64,6 +64,9 @@ class EnergyBalanceModelEnv(gym.Env):
 
         self.utils = Utils()
         self.seed = seed
+        self.flwr_client = self.cid = int(os.getenv("FLWR_CLIENT"))
+
+        print(f"[RL Env] Environment ID: {self.flwr_client}", flush=True)
 
         # self.max_D = self.min_D = (
         #     0.6  # Have to be kept constant for single latitude cases
@@ -132,7 +135,7 @@ class EnergyBalanceModelEnv(gym.Env):
         print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
 
         self.redis.put_tensor(
-            f"SIGALIVE_S{self.seed}", np.array([1], dtype=np.int32)
+            f"SIGALIVE_S{self.flwr_client}", np.array([1], dtype=np.int32)
         )
 
         # self.reset(self.seed)
@@ -229,8 +232,8 @@ class EnergyBalanceModelEnv(gym.Env):
         self.climlab_ebm.name = "EBM Model"
 
         self.ebm_min_idx, self.ebm_max_idx = (
-            self.seed * EBM_SUBLATITUDES,
-            (self.seed + 1) * EBM_SUBLATITUDES,
+            self.cid * EBM_SUBLATITUDES,
+            (self.cid + 1) * EBM_SUBLATITUDES,
         )
         self.phi = self.ebm.lat[self.ebm_min_idx : self.ebm_max_idx]
 

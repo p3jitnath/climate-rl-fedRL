@@ -48,15 +48,15 @@ class FedRL:
         if self.agent and self.flwr_agent:
             # Wait for signal that weights are available
             while not self.redis.tensor_exists(
-                f"agent_network_weights_g2c_s{self.seed}"
+                f"agent_network_weights_g2c_s{self.flwr_client}"
             ):
                 pass
 
             # Retrieve and reshape weights tensor based on Agent's structure
             agent_weights = self.redis.get_tensor(
-                f"agent_network_weights_g2c_s{self.seed}"
+                f"agent_network_weights_g2c_s{self.flwr_client}"
             )
-            # print('[RL Agent] Agent', self.seed, 'L', agent_weights[0:5], flush=True)
+            # print('[RL Agent] Agent', self.flwr_client, 'L', agent_weights[0:5], flush=True)
 
             old_agent_params = [
                 param.clone().detach() for param in self.agent.parameters()
@@ -87,21 +87,23 @@ class FedRL:
             print(f"[RL Agent] Agent norm: {agent_diff_norm}")
 
             # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(f"agent_network_weights_g2c_s{self.seed}")
+            self.redis.delete_tensor(
+                f"agent_network_weights_g2c_s{self.flwr_client}"
+            )
 
         # 1. Actor
         if self.actor and self.flwr_actor:
             # Wait for signal that weights are available
             while not self.redis.tensor_exists(
-                f"actor_network_weights_g2c_s{self.seed}"
+                f"actor_network_weights_g2c_s{self.flwr_client}"
             ):
                 pass
 
             # Retrieve and reshape weights tensor based on Actor's structure
             actor_weights = self.redis.get_tensor(
-                f"actor_network_weights_g2c_s{self.seed}"
+                f"actor_network_weights_g2c_s{self.flwr_client}"
             )
-            # print('[RL Agent] Actor', self.seed, 'L', actor_weights[0:5], flush=True)
+            # print('[RL Agent] Actor', self.flwr_client, 'L', actor_weights[0:5], flush=True)
 
             old_actor_params = [
                 param.clone().detach() for param in self.actor.parameters()
@@ -132,21 +134,23 @@ class FedRL:
             print(f"[RL Agent] Actor norm: {actor_diff_norm}")
 
             # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(f"actor_network_weights_g2c_s{self.seed}")
+            self.redis.delete_tensor(
+                f"actor_network_weights_g2c_s{self.flwr_client}"
+            )
 
         # 2. Critic
         if self.critics and self.flwr_critics:
             # Wait for signal that weights are available
             while not self.redis.tensor_exists(
-                f"critic_network_weights_g2c_s{self.seed}"
+                f"critic_network_weights_g2c_s{self.flwr_client}"
             ):
                 pass
 
             # Retrieve and reshape weights tensor based on Critic's structure
             critic_weights = self.redis.get_tensor(
-                f"critic_network_weights_g2c_s{self.seed}"
+                f"critic_network_weights_g2c_s{self.flwr_client}"
             )
-            # print('[RL Agent] Critic', self.seed, 'L', critic_weights[0:5], flush=True)
+            # print('[RL Agent] Critic', self.flwr_client, 'L', critic_weights[0:5], flush=True)
 
             old_critic_params = [
                 param.clone().detach()
@@ -188,7 +192,7 @@ class FedRL:
 
             # Clear weights and signal to reset for the next round
             self.redis.delete_tensor(
-                f"critic_network_weights_g2c_s{self.seed}"
+                f"critic_network_weights_g2c_s{self.flwr_client}"
             )
 
     # save updated weights to Redis
@@ -202,14 +206,14 @@ class FedRL:
                 ]
             )
             self.redis.put_tensor(
-                f"agent_network_weights_c2g_s{self.seed}", agent_weights
+                f"agent_network_weights_c2g_s{self.flwr_client}", agent_weights
             )
             if self.weights_folder:
                 torch.save(
                     self.agent.state_dict(),
                     f"{self.weights_folder}/agent/agent-{step_count}.pt",
                 )
-            # print('[RL Agent] Agent', self.seed, 'S', weights[0:5], flush=True)
+            # print('[RL Agent] Agent', self.flwr_client, 'S', weights[0:5], flush=True)
 
         # 1. Actor
         if self.actor:
@@ -220,14 +224,14 @@ class FedRL:
                 ]
             )
             self.redis.put_tensor(
-                f"actor_network_weights_c2g_s{self.seed}", actor_weights
+                f"actor_network_weights_c2g_s{self.flwr_client}", actor_weights
             )
             if self.weights_folder:
                 torch.save(
                     self.actor.state_dict(),
                     f"{self.weights_folder}/actor/actor-{step_count}.pt",
                 )
-            # print('[RL Agent] Actor', self.seed, 'S', actor_weights[0:5], flush=True)
+            # print('[RL Agent] Actor', self.flwr_client, 'S', actor_weights[0:5], flush=True)
 
         # 2. Critic
         if self.critics:
@@ -239,7 +243,8 @@ class FedRL:
                 ]
             )
             self.redis.put_tensor(
-                f"critic_network_weights_c2g_s{self.seed}", critic_weights
+                f"critic_network_weights_c2g_s{self.flwr_client}",
+                critic_weights,
             )
             if self.weights_folder:
                 for idx, critic in enumerate(self.critics):
@@ -247,7 +252,7 @@ class FedRL:
                         critic.state_dict(),
                         f"{self.weights_folder}/critic/critic-{idx}-{step_count}.pt",
                     )
-            # print('[RL Agent] Critic', self.seed, 'S', critic_weights[0:5], flush=True)
+            # print('[RL Agent] Critic', self.flwr_client, 'S', critic_weights[0:5], flush=True)
 
     # load the current global replay buffer from Redis
     def load_replay_buffer(self):
@@ -262,7 +267,7 @@ class FedRL:
     # save the new replay buffer entries to Redis
     def save_new_replay_buffer_entries(self):
         self.redis.put_tensor(
-            f"new_replay_buffer_entries_c2g_s{self.seed}",
+            f"new_replay_buffer_entries_c2g_s{self.flwr_client}",
             np.frombuffer(pickle.dumps(self.new_rb_entries), dtype=np.uint8),
         )
         self.new_rb_entries = []

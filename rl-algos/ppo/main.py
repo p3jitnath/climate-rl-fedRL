@@ -187,7 +187,11 @@ args = tyro.cli(Args)
 args.batch_size = int(args.num_envs * args.num_steps)
 args.minibatch_size = int(args.batch_size // args.num_minibatches)
 args.num_iterations = args.total_timesteps // args.batch_size
-run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+
+if args.flwr_client is not None:
+    run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{args.flwr_client}__{int(time.time())}"
+else:
+    run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
 if not args.optimise:
     records_folder = f"{BASE_DIR}/records/{run_name}"
@@ -329,10 +333,16 @@ for iteration in range(1, args.num_iterations + 1):
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if info and "episode" in info:
-                    print(
-                        f"seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
-                        flush=True,
-                    )
+                    if args.flwr_client is not None:
+                        print(
+                            f"flwr_client={args.flwr_client}, seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
+                            flush=True,
+                        )
+                    else:
+                        print(
+                            f"seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
+                            flush=True,
+                        )
                     writer.add_scalar(
                         "charts/episodic_return",
                         info["episode"]["r"],

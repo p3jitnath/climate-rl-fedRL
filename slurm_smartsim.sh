@@ -49,6 +49,10 @@ while [ $# -gt 0 ]; do
       export FLWR_CRITICS="$2"
       shift 2
       ;;
+    --seed)
+      export SEED="$2"
+      shift 2
+      ;;
     --) # explicit end of args
       shift
       break
@@ -67,6 +71,7 @@ echo "WANDB_GROUP: $WANDB_GROUP"
 echo "FLWR_ACTOR: $FLWR_ACTOR"
 echo "FLWR_CRITICS: $FLWR_CRITICS"
 echo "OPTIM_GROUP: $OPTIM_GROUP"
+echo "SEED: $SEED"
 
 # getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
