@@ -15,37 +15,37 @@ program main
     integer :: status
     logical :: compute_signal_found, start_signal_found, compute_data_found
     type(client_type) :: client
-    character(len=20) :: k_sigcompute, k_sigstart, k_f2py, k_py2f, cmd_seed
-    integer :: wait_time, seed
+    character(len=20) :: k_sigcompute, k_sigstart, k_f2py, k_py2f, cmd_cid
+    integer :: wait_time, cid
 
     ! Variables for temperature calculation
     real(8) :: u, current_temperature, new_temperature
     real(8) :: initial_temperature
 
-    ! Command-line argument handling for seed
+    ! Command-line argument handling for cid
     if (command_argument_count() < 1) then
-        print *, "Error: Please provide a seed as a commandline argument."
+        print *, "Error: Please provide a cid as a commandline argument."
         stop
     end if
 
-    call get_command_argument(1, cmd_seed)
-    read(cmd_seed, *) seed
-    if (seed < 0) then
+    call get_command_argument(1, cmd_cid)
+    read(cmd_cid, *) cid
+    if (cid < 0) then
         print *, "Error: Seed must be a non-negative integer."
         stop
     end if
 
-    ! Set the keys used to signal computation start and start with the seed
-    write(k_sigcompute, '("SIGCOMPUTE_S", i0)') seed
-    write(k_sigstart, '("SIGSTART_S", i0)') seed
-    write(k_f2py,'("f2py_redis_s", i0)') seed
-    write(k_py2f,'("py2f_redis_s", i0)') seed
+    ! Set the keys used to signal computation start and start with the cid
+    write(k_sigcompute, '("SIGCOMPUTE_S", i0)') cid
+    write(k_sigstart, '("SIGSTART_S", i0)') cid
+    write(k_f2py,'("f2py_redis_s", i0)') cid
+    write(k_py2f,'("py2f_redis_s", i0)') cid
 
     wait_time = 0.0001 ! seconds to wait between checks
 
     ! Initialize the current temperature (300 - 273.15) / 100
-    ! Supports 8 different seeds 0-7 (inclusive)
-    initial_temperature = (300.0d0 + 10*(seed - 1) - 273.15d0) / 100.0d0
+    ! Supports 8 different cids 0-7 (inclusive)
+    initial_temperature = (300.0d0 + 10*(cid - 1) - 273.15d0) / 100.0d0
     current_temperature = initial_temperature
 
     ! Initialize the Redis client
@@ -68,6 +68,12 @@ program main
         ! If start signal is found, start the temperature to its initial value
         if (start_signal_found) then
             print *, "Start signal received. Resetting temperature..."
+
+            ! Delete the start signal before processing it
+            status = client%delete_tensor(k_sigstart)
+            if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGSTART'
+            call sleep(wait_time)
+
             f2py_redis(1) = initial_temperature ! Store the start result
             current_temperature = initial_temperature ! Reset the temperature
 
@@ -78,17 +84,16 @@ program main
             if (status .ne. SRNoError) error stop 'client%put_tensor failed'
 
             print *, "Reset done. Result sent to Redis."
-
-            ! Delete the start signal after processing it
-            call sleep(wait_time)
-            status = client%delete_tensor(k_sigstart)
-            if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGSTART'
-
             print *, "Temperature reset to initial value. Waiting for the next signal..."
 
         ! If computation signal is found, perform the computation
         else if (compute_signal_found .and. compute_data_found) then
             print *, "Computation signal and data received. Starting computation..."
+
+            ! Reset the computation signal before processing it
+            call sleep(wait_time)
+            status = client%delete_tensor(k_sigcompute)
+            if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGCOMPUTE'
 
             ! Retrieve the heating increment (u) from Redis into "py2f_redis"
             status = client%unpack_tensor(k_py2f, py2f_redis, shape(py2f_redis))
@@ -114,12 +119,6 @@ program main
             if (status .ne. SRNoError) error stop 'client%put_tensor failed'
 
             print *, "Computation done. Result sent to Redis."
-
-            ! Reset the computation signal after processing it
-            call sleep(wait_time)
-            status = client%delete_tensor(k_sigcompute)
-            if (status .ne. SRNoError) error stop 'client%delete_tensor failed for SIGCOMPUTE'
-
             print *, "Computation signal reset. Waiting for the next signal..."
 
         end if

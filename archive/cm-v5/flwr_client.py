@@ -11,10 +11,11 @@ import subprocess
 import sys
 
 import fedrl_climate_envs
-import flwr as fl
 import gymnasium as gym
 import numpy as np
 import smartredis
+
+import flwr as fl
 
 Actor, Critic = getattr(
     importlib.import_module(f"{RL_ALGO}_actor"), "Actor"
@@ -60,7 +61,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         def make_env(env_id, seed):
             def thunk():
-                env = gym.make(env_id, seed=seed)
+                env = gym.make(env_id, seed=seed, cid=cid)
                 return env
 
             return thunk

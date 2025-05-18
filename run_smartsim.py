@@ -15,9 +15,10 @@ CLIMLAB_EXE = "climlab_ebm.py"
 
 RL_ALGO = os.getenv("RL_ALGO")
 WANDB_GROUP = os.getenv("WANDB_GROUP")
+ENV_ID = os.getenv("ENV_ID")
 
-NUM_SEEDS = 2
-SEEDS = [x for x in range(NUM_SEEDS)]  # Add more seeds here if needed
+NUM_CLIENTS = 2
+CLIENTS = [x for x in range(NUM_CLIENTS)]  # Add more clients here if needed
 
 # SBATCH_ARGS = {
 #     "nodes": 1,
@@ -32,13 +33,13 @@ SEEDS = [x for x in range(NUM_SEEDS)]  # Add more seeds here if needed
 # FLWR_SBATCH_ARGS = {
 #     "nodes": 1,
 #     "ntasks-per-node": 1,
-#     "cpus-per-task": NUM_SEEDS + 1,
+#     "cpus-per-task": NUM_CLIENTS + 1,
 #     "mem-per-cpu": "8G",
 #     "time": "01:00:00",
 #     "partition": "test",
 # }
 
-# NUM_CPUs : 1 (THIS) + 1 (CLIMATE MODEL) + NUM_SEEDS+1 (FLWR)
+# NUM_CPUs : 1 (THIS) + 1 (CLIMATE MODEL) + NUM_CLIENTS+1 (FLWR)
 
 
 def get_redis_port():
@@ -111,33 +112,39 @@ def main():
     #     batch_args=FLWR_SBATCH_ARGS
     # )
 
-    # Start SCM processes with different seeds
-    # scm_models = []
-    # for seed in SEEDS:
-    #     model = create_and_start_model(
-    #         exp,
-    #         f"SCM_{seed}",
-    #         f"{ENVIRONMENT_DIR}/{SCM_EXE}",
-    #         [str(seed)],
-    #         block=False,
-    #         batch_settings=batch_settings
-    #     )
-    #     scm_models.append(model)
+    if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
+        # Start SCM processes with different seeds
+        scm_models = []
+        for cid in CLIENTS:
+            model = create_and_start_model(
+                exp,
+                f"SCM_{cid}",
+                f"{ENVIRONMENT_DIR}/{SCM_EXE}",
+                [str(cid)],
+                block=False,
+                # batch_settings=batch_settings
+            )
+            scm_models.append(model)
 
-    # ebm_model = create_and_start_model(
-    #     exp,
-    #     "EBM",
-    #     PYTHON_EXE,
-    #     [f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}", "--num_seeds", f"{len(SEEDS)}"],
-    #     block=False,
-    # )
+    if ENV_ID in ["EnergyBalanceModel-v3"]:
+        ebm_model = create_and_start_model(
+            exp,
+            "EBM",
+            PYTHON_EXE,
+            [
+                f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}",
+                "--num_clients",
+                f"{len(CLIENTS)}",
+            ],
+            block=False,
+        )
 
     # Start FLWR orchestrator
     flwr_model = create_and_start_model(
         exp,
         "FLWR_Orchestrator",
         PYTHON_EXE,
-        [f"{BASE_DIR}/{FLWR_EXE}", "--num_clients", f"{len(SEEDS)}"],
+        [f"{BASE_DIR}/{FLWR_EXE}", "--num_clients", f"{len(CLIENTS)}"],
         block=False,
     )
 
@@ -145,8 +152,10 @@ def main():
     wait_for_completion(exp, [flwr_model], label="FLWR")
 
     # Stop all processes after completion
-    # exp.stop(*scm_models)
-    # exp.stop(ebm_model)
+    if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
+        exp.stop(*scm_models)
+    if ENV_ID in ["EnergyBalanceModel-v3"]:
+        exp.stop(ebm_model)
     exp.stop(redis_model)
     print("Experiment completed successfully.", flush=True)
 

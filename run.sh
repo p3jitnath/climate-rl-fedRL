@@ -2,7 +2,8 @@
 # Stop all pending ray processes
 
 # ray stop --force
-rm -rf SM-FLWR_Orchestrator
+rm -rf SM-FLWR_Orchestrator_*
+
 export SSDB=localhost:6380
 export DISTRIBUTED=0
 
@@ -50,6 +51,15 @@ export DISTRIBUTED=0
 # else
 #   echo "No keys found matching pattern 'f2py*'."
 # fi
+
+# 1. Set experiment environment variables
+export RL_ALGO="ddpg"
+export ENV_ID="EnergyBalanceModel-v3"
+export OPTIM_GROUP="ebm-v1-optim-L-20k"
+export WANDB_GROUP="test"
+export FLWR_ACTOR="true"
+export FLWR_CRITICS="false"
+export SEED="0"
 
 # 1. Run smartsim
 cd fedrl-climate-envs && pip install . && cd ..

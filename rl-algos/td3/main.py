@@ -135,11 +135,15 @@ class Args:
                         setattr(self, key, value)
 
 
-def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
+def make_env(
+    env_id, seed, cid, idx, capture_video, run_name, capture_video_freq
+):
     def thunk():
         if capture_video and idx == 0:
             try:
-                env = gym.make(env_id, seed=seed, render_mode="rgb_array")
+                env = gym.make(
+                    env_id, seed=seed, cid=cid, render_mode="rgb_array"
+                )
             except TypeError:
                 env = gym.make(env_id, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(
@@ -152,7 +156,7 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
             )
         else:
             try:
-                env = gym.make(env_id, seed=seed)
+                env = gym.make(env_id, seed=seed, cid=cid)
             except TypeError:
                 env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -163,7 +167,11 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
 
 
 args = tyro.cli(Args)
-run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+
+if args.flwr_client is not None:
+    run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{args.flwr_client}__{int(time.time())}"
+else:
+    run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
 if not args.optimise:
     records_folder = f"{BASE_DIR}/records/{run_name}"
@@ -217,6 +225,7 @@ envs = gym.vector.SyncVectorEnv(
         make_env(
             args.env_id,
             args.seed,
+            args.flwr_client,
             0,
             args.capture_video,
             run_name,
@@ -309,10 +318,16 @@ for global_step in range(1, args.total_timesteps + 1):
 
     if "final_info" in infos:
         for info in infos["final_info"]:
-            print(
-                f"seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
-                flush=True,
-            )
+            if args.flwr_client is not None:
+                print(
+                    f"flwr_client={args.flwr_client}, seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
+                    flush=True,
+                )
+            else:
+                print(
+                    f"seed={args.seed}, global_step={global_step}, episodic_return={info['episode']['r']}",
+                    flush=True,
+                )
             writer.add_scalar(
                 "charts/episodic_return", info["episode"]["r"], global_step
             )

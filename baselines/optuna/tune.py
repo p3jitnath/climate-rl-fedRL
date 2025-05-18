@@ -32,10 +32,7 @@ class Args:
 
 def make_env(env_id, seed):
     def thunk():
-        try:
-            env = gym.make(env_id, seed=seed)
-        except TypeError:
-            env = gym.make(env_id)
+        env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
         return env

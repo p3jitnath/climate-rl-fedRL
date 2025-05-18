@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os
 import time
 from dataclasses import dataclass
@@ -10,14 +8,14 @@ import tyro
 import xarray as xr
 from smartredis import Client
 
-WAIT_TIME = 0.0001
+WAIT_TIME = 1e-4
 EBM_LATITUDES = 96
 
 
 @dataclass
 class Args:
-    num_seeds: int = 2
-    """number of seeds (corresponding to latitudes in the EBM)"""
+    num_clients: int = 2
+    """number of clients (corresponding to latitudes in the EBM)"""
 
 
 class Utils:
@@ -96,31 +94,40 @@ class ClimLabEBM:
 class Exists:
 
     def __init__(self):
-        self.sigcompute = np.zeros(args.num_seeds)
-        self.sigstart = np.zeros(args.num_seeds)
-        self.params = np.zeros(args.num_seeds)
+        self.sigcompute = np.zeros(args.num_clients)
+        self.sigstart = np.zeros(args.num_clients)
+        self.params = np.zeros(args.num_clients)
 
 
 args = tyro.cli(Args)
 utils, exists = Utils(), Exists()
+ctr = 0
 
 while True:
 
     # 0. Check which key exists
-    for idx, seed in enumerate(range(args.num_seeds)):
-        if utils.redis.tensor_exists(f"SIGSTART_S{seed}"):
+    for idx, cid in enumerate(range(args.num_clients)):
+        if utils.redis.tensor_exists(f"SIGSTART_S{cid}"):
             exists.sigstart[idx] = 1
-        if utils.redis.tensor_exists(f"SIGCOMPUTE_S{seed}"):
+        if utils.redis.tensor_exists(f"SIGCOMPUTE_S{cid}"):
             exists.sigcompute[idx] = 1
+
+    # if ctr % int(1e6) == 0:
+    #     print(f"[climlab EBM] exists.sigstart: {exists.sigstart}", flush=True)
+    #     print(f"[climlab EBM] exists.sigcompute: {exists.sigcompute}", flush=True)
 
     if np.sum(exists.sigstart) > 0:
         ebm = ClimLabEBM(utils)
 
         # 1. Send the initialised state and other reference variables to the RL agent
-        for idx, seed in enumerate(range(args.num_seeds)):
+        for idx, cid in enumerate(range(args.num_clients)):
             if exists.sigstart[idx] != 0:
+                # print(f"[climlab EBM] deleted: SIGSTART_S{cid}", flush=True)
+                utils.redis.delete_tensor(f"SIGSTART_S{cid}")
+                time.sleep(WAIT_TIME)
+                # print(f"[climlab EBM] sent: f2py_redis_s{cid}", flush=True)
                 utils.redis.put_tensor(
-                    f"f2py_redis_s{seed}",
+                    f"f2py_redis_s{cid}",
                     np.array(
                         [
                             ebm.ebm.Ts,
@@ -132,23 +139,24 @@ while True:
                     ),
                 )
                 exists.sigstart[idx] = 0
-                time.sleep(WAIT_TIME)
-                utils.redis.delete_tensor(f"SIGSTART_S{seed}")
 
-    if np.sum(exists.sigcompute) == args.num_seeds:
-        params = [None for x in range(args.num_seeds)]
+    if np.sum(exists.sigcompute) == args.num_clients:
+        params = [None for x in range(args.num_clients)]
 
         # 2. Wait for the RL agents to compute the new parameters and send
-        while sum(exists.params) != args.num_seeds:
-            for idx, seed in enumerate(range(args.num_seeds)):
+        while sum(exists.params) != args.num_clients:
+            for idx, cid in enumerate(range(args.num_clients)):
                 if params[idx] is None:
-                    if utils.redis.tensor_exists(f"py2f_redis_s{seed}"):
+                    if utils.redis.tensor_exists(f"py2f_redis_s{cid}"):
+                        # print(f"[climlab EBM] received: py2f_redis_s{cid}", flush=True)
                         params[idx] = utils.redis.get_tensor(
-                            f"py2f_redis_s{seed}"
+                            f"py2f_redis_s{cid}"
                         )
                         exists.params[idx] = 1
+                        # print(f"[climlab EBM] exists.params: {exists.params}", flush=True)
                         time.sleep(WAIT_TIME)
-                        utils.redis.delete_tensor(f"py2f_redis_s{seed}")
+                        # print(f"[climlab EBM] deleted: py2f_redis_s{cid}", flush=True)
+                        utils.redis.delete_tensor(f"py2f_redis_s{cid}")
                     else:
                         continue  # Extract the params in another pass
 
@@ -170,15 +178,18 @@ while True:
         ebm.climlab_ebm.step_forward()
 
         # 4. Send the state to the RL agent
-        for idx, seed in enumerate(range(args.num_seeds)):
+        for idx, cid in enumerate(range(args.num_clients)):
+            # print(f"[climlab EBM] deleted: SIGCOMPUTE_S{cid}", flush=True)
+            utils.redis.delete_tensor(f"SIGCOMPUTE_S{cid}")
+            time.sleep(WAIT_TIME)
+            # print(f"[climlab EBM] sent: f2py_redis_s{cid}", flush=True)
             utils.redis.put_tensor(
-                f"f2py_redis_s{seed}",
+                f"f2py_redis_s{cid}",
                 np.array([ebm.ebm.Ts, ebm.climlab_ebm.Ts], dtype=np.float32),
             )
-            time.sleep(WAIT_TIME)
-            utils.redis.delete_tensor(f"SIGCOMPUTE_S{seed}")
 
         exists.params[:] = 0
         exists.sigcompute[:] = 0
 
+    ctr += 1
     time.sleep(WAIT_TIME)  # wait for a bit before checking for signals again

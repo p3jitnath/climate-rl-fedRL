@@ -67,11 +67,15 @@ class Args:
     """path to load the actor network weights"""
 
 
-def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
+def make_env(
+    env_id, seed, cid, idx, capture_video, run_name, capture_video_freq
+):
     def thunk():
         if capture_video and idx == 0:
             try:
-                env = gym.make(env_id, seed=seed, render_mode="rgb_array")
+                env = gym.make(
+                    env_id, seed=seed, cid=cid, render_mode="rgb_array"
+                )
             except TypeError:
                 env = gym.make(env_id, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(
@@ -84,7 +88,7 @@ def make_env(env_id, seed, idx, capture_video, run_name, capture_video_freq):
             )
         else:
             try:
-                env = gym.make(env_id, seed=seed)
+                env = gym.make(env_id, seed=seed, cid=cid)
             except TypeError:
                 env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -148,6 +152,7 @@ envs = gym.vector.SyncVectorEnv(
         make_env(
             args.env_id,
             args.seed,
+            args.flwr_client,
             0,
             args.capture_video,
             run_name,

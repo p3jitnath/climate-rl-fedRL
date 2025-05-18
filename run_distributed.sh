@@ -4,7 +4,7 @@
 rm -rf SM-FLWR_Orchestrator_*
 
 # 0b. Update climateRL environments
-# cd fedrl-climate-envs && pip install . && cd ..
+cd fedrl-climate-envs && pip install . && cd ..
 
 # 1a. Function to display usage
 usage() {
@@ -67,20 +67,22 @@ fi
 BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
-ALGOS=("ddpg" "td3")
+ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "tqc" "avg")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 NOW=$(date +%F_%H-%M)
+WANDB_GROUP="${TAG}_${NOW}"
 
 # 5. Loop through each algorithm and execute the script
 for ALGO in "${ALGOS[@]}"; do
-    WANDB_GROUP="${TAG}_${NOW}"
     # Submit each algorithm run as a separate Slurm job
     sbatch slurm_smartsim.sh \
            --rl_algo   "$ALGO" \
            --env_id    "$ENV_ID" \
            ${OPTIM_GROUP:+--optim_group "$OPTIM_GROUP"} \
+           --tag "$TAG" \
            --wandb_group  "$WANDB_GROUP" \
            --flwr_actor   "$FLWR_ACTOR" \
-           --flwr_critics "$FLWR_CRITICS"
+           --flwr_critics "$FLWR_CRITICS" \
+           --seed 0
 done

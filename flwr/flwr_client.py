@@ -12,6 +12,7 @@ WANDB_GROUP = os.getenv("WANDB_GROUP")
 OPTIM_GROUP = os.getenv("OPTIM_GROUP", None)
 FLWR_ACTOR = bool(strtobool(os.getenv("FLWR_ACTOR")))
 FLWR_CRITICS = bool(strtobool(os.getenv("FLWR_CRITICS")))
+SEED = os.getenv("SEED")
 
 CRITIC_ALGOS = [
     ("avg", 1),
@@ -64,7 +65,7 @@ class FlowerClient(fl.client.NumPyClient):
         super().__init__()
 
         self.cid = cid
-        self.seed = int(cid)
+        self.seed = SEED
         self.is_distributed = is_distributed
 
         # SmartRedis setup
@@ -107,7 +108,7 @@ class FlowerClient(fl.client.NumPyClient):
         cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
         cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
         cmd += (
-            f"--critic_layer_size {self.critic_layer_size} --capture_video_freq 50"
+            f"--critic_layer_size {self.critic_layer_size} --capture_video_freq 50"  # --no-capture_video
             + " "
         )
 
@@ -116,33 +117,22 @@ class FlowerClient(fl.client.NumPyClient):
             ("flwr_critics", FLWR_CRITICS),
         ):
             prefix = "" if enabled else "no-"
+            if RL_ALGO in ["reinforce", "ppo"] and name == "flwr_critics":
+                continue
+            if RL_ALGO == "ppo":
+                name = "flwr_agent"
             cmd += f"--{prefix}{name}" + " "
 
-        if not self.is_distributed:
-            # Check if the command is already running using `pgrep`
-            check_cmd = f"pgrep -f '{cmd}'"
-            is_alive = subprocess.run(
-                check_cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+        is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.cid}")
+        print("is_alive:", is_alive, flush=True)
+        if not is_alive:
+            print(cmd, flush=True)
+            subprocess.Popen(cmd.split())
 
-            # If no process is found, `pgrep` returns a non-zero exit code, so we start the process
-            if is_alive.returncode != 0:
-                print(cmd, flush=True)
-                subprocess.Popen(cmd.split())
-        else:
-            is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.seed}")
-            print("is_alive:", is_alive, flush=True)
-            if not is_alive:
-                print(cmd, flush=True)
-                subprocess.Popen(cmd.split())
-
-        def make_env(env_id, seed):
+        def make_env(env_id, seed, cid):
             def thunk():
                 try:
-                    env = gym.make(env_id, seed=seed)
+                    env = gym.make(env_id, seed=seed, cid=cid)
                 except TypeError:
                     env = gym.make(env_id)
                 return env
@@ -150,13 +140,15 @@ class FlowerClient(fl.client.NumPyClient):
             return thunk
 
         # env setup
-        self.envs = gym.vector.SyncVectorEnv([make_env(ENV_ID, self.seed)])
+        self.envs = gym.vector.SyncVectorEnv(
+            [make_env(ENV_ID, self.seed, self.cid)]
+        )
 
         assert isinstance(
             self.envs.single_action_space, gym.spaces.Box
         ), "only continuous action space is supported"
 
-        self.agent = self.actor = self.critic = None
+        self.agent = self.actor = self.critics = None
 
         if Agent:
             self.agent = Agent(
@@ -192,7 +184,7 @@ class FlowerClient(fl.client.NumPyClient):
 
             # Store weights in Redis and send a signal to indicate update
             self.redis.put_tensor(
-                f"agent_network_weights_g2c_s{self.seed}", agent_weights
+                f"agent_network_weights_g2c_s{self.cid}", agent_weights
             )
 
         # 1. Actor
@@ -204,7 +196,7 @@ class FlowerClient(fl.client.NumPyClient):
 
             # Store weights in Redis and send a signal to indicate update
             self.redis.put_tensor(
-                f"actor_network_weights_g2c_s{self.seed}", actor_weights
+                f"actor_network_weights_g2c_s{self.cid}", actor_weights
             )
 
         # 2. Critic
@@ -216,7 +208,7 @@ class FlowerClient(fl.client.NumPyClient):
 
             # Store weights in Redis and send a signal to indicate update
             self.redis.put_tensor(
-                f"critic_network_weights_g2c_s{self.seed}", critic_weights
+                f"critic_network_weights_g2c_s{self.cid}", critic_weights
             )
 
     def get_parameters(self, config):
@@ -224,13 +216,13 @@ class FlowerClient(fl.client.NumPyClient):
         # Wait for signal that actor network weights are available
         if self.agent:
             while not self.redis.tensor_exists(
-                f"agent_network_weights_c2g_s{self.seed}"
+                f"agent_network_weights_c2g_s{self.cid}"
             ):
                 continue
 
             # Retrieve and reshape weights tensor based on Agent's structure
             agent_weights = self.redis.get_tensor(
-                f"agent_network_weights_c2g_s{self.seed}"
+                f"agent_network_weights_c2g_s{self.cid}"
             )
             parameters = []
             offset = 0
@@ -243,19 +235,19 @@ class FlowerClient(fl.client.NumPyClient):
                 offset += size
 
             # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(f"agent_network_weights_c2g_s{self.seed}")
+            self.redis.delete_tensor(f"agent_network_weights_c2g_s{self.cid}")
 
         # 1. Actor
         # Wait for signal that actor network weights are available
         if self.actor:
             while not self.redis.tensor_exists(
-                f"actor_network_weights_c2g_s{self.seed}"
+                f"actor_network_weights_c2g_s{self.cid}"
             ):
                 continue
 
             # Retrieve and reshape weights tensor based on Actor's structure
             actor_weights = self.redis.get_tensor(
-                f"actor_network_weights_c2g_s{self.seed}"
+                f"actor_network_weights_c2g_s{self.cid}"
             )
             parameters = []
             offset = 0
@@ -268,19 +260,19 @@ class FlowerClient(fl.client.NumPyClient):
                 offset += size
 
             # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(f"actor_network_weights_c2g_s{self.seed}")
+            self.redis.delete_tensor(f"actor_network_weights_c2g_s{self.cid}")
 
         # 2. Critic
         # Wait for signal that critic network weights are available
         if self.critics:
             while not self.redis.tensor_exists(
-                f"critic_network_weights_c2g_s{self.seed}"
+                f"critic_network_weights_c2g_s{self.cid}"
             ):
                 continue
 
             # Retrieve and reshape weights tensor based on Critic's structure
             critic_weights = self.redis.get_tensor(
-                f"critic_network_weights_c2g_s{self.seed}"
+                f"critic_network_weights_c2g_s{self.cid}"
             )
 
             offset = 0
@@ -294,22 +286,20 @@ class FlowerClient(fl.client.NumPyClient):
                     offset += size
 
             # Clear weights and signal to reset for the next round
-            self.redis.delete_tensor(
-                f"critic_network_weights_c2g_s{self.seed}"
-            )
+            self.redis.delete_tensor(f"critic_network_weights_c2g_s{self.cid}")
 
         return parameters
 
     def get_new_replay_buffer_entries(self):
         # Wait for signal that new replay buffer entries are available
         while not self.redis.tensor_exists(
-            f"new_replay_buffer_entries_c2g_s{self.seed}"
+            f"new_replay_buffer_entries_c2g_s{self.cid}"
         ):
             continue
 
         # Retrieve the new replay buffer entries
         new_rb_entries = self.redis.get_tensor(
-            f"new_replay_buffer_entries_c2g_s{self.seed}"
+            f"new_replay_buffer_entries_c2g_s{self.cid}"
         )
         new_rb_entries = pickle.loads(new_rb_entries.tobytes())
 
@@ -317,15 +307,15 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         # Update the actor network parameters
-        # print(config['server_round'], self.seed, "[Flwr Client] - setting parameters", flush=True)
+        # print(config['server_round'], self.cid, "[Flwr Client] - setting parameters", flush=True)
         self.set_parameters(parameters)
 
         # Retrieve updated parameters from Redis after RL processing
-        # print(config['server_round'], self.seed, "[Flwr Client] - loading parameters", flush=True)
+        # print(config['server_round'], self.cid, "[Flwr Client] - loading parameters", flush=True)
         updated_parameters = self.get_parameters(config)
 
         # Retrieve the new replay buffer entries from Redis
-        # print(config['server_round'], self.seed, "[Flwr Client] - loading new replay buffer entries", flush=True)
+        # print(config['server_round'], self.cid, "[Flwr Client] - loading new replay buffer entries", flush=True)
         # new_rb_entries = (
         #     self.get_new_replay_buffer_entries()
         #     if RL_ALGO not in ["avg", "ppo", "trpo", "dpg"]

@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=3
 #SBATCH --mem-per-cpu=8G
-#SBATCH --time=24:00:00
+#SBATCH --time=1:00:00
 #SBATCH --account=ai4er
 #SBATCH --partition=standard
 #SBATCH --qos=high
@@ -37,6 +37,10 @@ while [ $# -gt 0 ]; do
       export OPTIM_GROUP="$2"
       shift 2
       ;;
+     --tag)
+      export TAG="$2"
+      shift 2
+      ;;
     --wandb_group)
       export WANDB_GROUP="$2"
       shift 2
@@ -47,6 +51,10 @@ while [ $# -gt 0 ]; do
       ;;
     --flwr_critics)
       export FLWR_CRITICS="$2"
+      shift 2
+      ;;
+    --seed)
+      export SEED="$2"
       shift 2
       ;;
     --) # explicit end of args
@@ -67,6 +75,7 @@ echo "WANDB_GROUP: $WANDB_GROUP"
 echo "FLWR_ACTOR: $FLWR_ACTOR"
 echo "FLWR_CRITICS: $FLWR_CRITICS"
 echo "OPTIM_GROUP: $OPTIM_GROUP"
+echo "SEED: $SEED"
 
 # getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")

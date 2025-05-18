@@ -9,8 +9,8 @@ from matplotlib.gridspec import GridSpec
 from smartredis import Client
 
 EBM_LATITUDES = 96
-NUM_SEEDS = 2
-EBM_SUBLATITUDES = EBM_LATITUDES // NUM_SEEDS
+NUM_CLIENTS = 2
+EBM_SUBLATITUDES = EBM_LATITUDES // NUM_CLIENTS
 
 
 class EnergyBalanceModelEnv(gym.Env):
@@ -20,13 +20,16 @@ class EnergyBalanceModelEnv(gym.Env):
         "render_fps": 30,
     }
 
-    def __init__(self, seed=None, render_mode=None):
+    def __init__(self, seed=None, cid=None, render_mode=None):
 
         # self.max_D = self.min_D = (
         #     0.6  # Have to be kept constant for single latitude cases
         # )
 
         self.seed = seed
+        self.cid = cid
+
+        print(f"[RL Env] Environment ID: {self.cid}", flush=True)
 
         # self.min_D = 0.55
         # self.max_D = 0.65
@@ -83,9 +86,8 @@ class EnergyBalanceModelEnv(gym.Env):
             render_mode is None or render_mode in self.metadata["render_modes"]
         )
 
-        self.seed = seed
         self.render_mode = render_mode
-        self.wait_time = 0.0001
+        self.wait_time = 1e-4
 
         # SmartRedis setup
         self.REDIS_ADDRESS = os.getenv("SSDB")
@@ -94,8 +96,9 @@ class EnergyBalanceModelEnv(gym.Env):
         self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
         print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
 
+        # print(f"[RL Env] sent: SIGALIVE_S{self.cid}", flush=True)
         self.redis.put_tensor(
-            f"SIGALIVE_S{self.seed}", np.array([1], dtype=np.int32)
+            f"SIGALIVE_S{self.cid}", np.array([1], dtype=np.int32)
         )
 
         # self.reset(self.seed)
@@ -121,23 +124,27 @@ class EnergyBalanceModelEnv(gym.Env):
         # a2 = np.clip(a2, self.min_a2, self.max_a2)
 
         # Send the parameters to Redis
+        # print(f"[RL Env] sent: py2f_redis_s{self.cid}", flush=True)
         self.redis.put_tensor(
-            f"py2f_redis_s{self.seed}",
+            f"py2f_redis_s{self.cid}",
             np.array([self.A * 1e2, self.B], dtype=np.float32),
         )
+        # print(f"[RL Env] sent: SIGCOMPUTE_S{self.cid}", flush=True)
         self.redis.put_tensor(
-            f"SIGCOMPUTE_S{self.seed}", np.array([1], dtype=np.int32)
+            f"SIGCOMPUTE_S{self.cid}", np.array([1], dtype=np.int32)
         )
 
         # Wait for the climlab model to compute the new ebm temperatures and send
         self.ebm_Ts = None
         while self.ebm_Ts is None:
-            if self.redis.tensor_exists(f"f2py_redis_s{self.seed}"):
+            if self.redis.tensor_exists(f"f2py_redis_s{self.cid}"):
+                # print(f"[RL Env] received: f2py_redis_s{self.cid}", flush=True)
                 self.ebm_Ts, self.climlab_ebm_Ts = self.redis.get_tensor(
-                    f"f2py_redis_s{self.seed}"
+                    f"f2py_redis_s{self.cid}"
                 )
                 time.sleep(self.wait_time)
-                self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
+                # print(f"[RL Env] deleted: f2py_redis_s{self.cid}", flush=True)
+                self.redis.delete_tensor(f"f2py_redis_s{self.cid}")
             else:
                 continue
 
@@ -165,29 +172,32 @@ class EnergyBalanceModelEnv(gym.Env):
         super().reset(seed=seed)
 
         # Send the start signal to the Fortran model
+        # print(f"[RL Env] sent: SIGSTART_S{self.cid}", flush=True)
         self.redis.put_tensor(
-            f"SIGSTART_S{self.seed}", np.array([1], dtype=np.int32)
+            f"SIGSTART_S{self.cid}", np.array([1], dtype=np.int32)
         )
 
         # Wait for the climlab model to compute the new temperature and send
         self.ebm_Ts = None
         while self.ebm_Ts is None:
-            if self.redis.tensor_exists(f"f2py_redis_s{self.seed}"):
+            if self.redis.tensor_exists(f"f2py_redis_s{self.cid}"):
+                # print(f"[RL Env] received: f2py_redis_s{self.cid}", flush=True)
                 (
                     self.ebm_Ts,
                     self.climlab_ebm_Ts,
                     self.Ts_ncep_annual,
                     self.ebm_lat,
-                ) = self.redis.get_tensor(f"f2py_redis_s{self.seed}")
+                ) = self.redis.get_tensor(f"f2py_redis_s{self.cid}")
                 time.sleep(self.wait_time)
-                self.redis.delete_tensor(f"f2py_redis_s{self.seed}")
+                # print(f"[RL Env] deleted: f2py_redis_s{self.cid}", flush=True)
+                self.redis.delete_tensor(f"f2py_redis_s{self.cid}")
             else:
                 continue  # Wait for the computation to complete
 
         # Initialise the state
         self.ebm_min_idx, self.ebm_max_idx = (
-            self.seed * EBM_SUBLATITUDES,
-            (self.seed + 1) * EBM_SUBLATITUDES,
+            self.cid * EBM_SUBLATITUDES,
+            (self.cid + 1) * EBM_SUBLATITUDES,
         )
         self.phi = self.ebm_lat[self.ebm_min_idx : self.ebm_max_idx]
         self.state = self.ebm_Ts[self.ebm_min_idx : self.ebm_max_idx].reshape(

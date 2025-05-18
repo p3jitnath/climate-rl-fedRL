@@ -119,7 +119,7 @@ def main():
         ray_init_args=ray_init_args,
         client_resources={"num_cpus": 3, "num_gpus": 0},
         config=fl.server.ServerConfig(
-            num_rounds=2
+            num_rounds=25
         ),  # +1 to have 1 extra round # steps = num_rounds * 200 * flwr_episodes
     )
 
