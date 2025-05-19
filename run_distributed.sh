@@ -71,6 +71,7 @@ ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "tqc" "avg")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 NOW=$(date +%F_%H-%M)
+
 WANDB_GROUP="${TAG}_${NOW}"
 
 # 5. Loop through each algorithm and execute the script

@@ -98,13 +98,20 @@ fi
 
 # __doc_head_address_end__
 
-port=$(shuf -i 6380-6580 -n 1)
+function get_free_port() {
+    local port
+    while true; do
+        port=$(shuf -i 6200-65535 -n 1)
+        if ! netstat -ltn | grep -q ":$port\b"; then
+            echo $port
+            return
+        fi
+    done
+}
 
-k=$(shuf -i 20-55 -n 1)
-min_port=$((k * 1000))
-max_port=$((min_port + 999))
+port=$(get_free_port)
+redis_port=$(get_free_port)
 
-redis_port=$(shuf -i 6280-6480 -n 1)
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
