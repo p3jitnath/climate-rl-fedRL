@@ -89,8 +89,8 @@ class EnergyBalanceModelEnv(gym.Env):
 
         self.utils = Utils()
 
-        # self.min_D = 0.55
-        # self.max_D = 0.65
+        self.min_D = 0.55
+        self.max_D = 0.65
 
         self.min_A = 1.4
         self.max_A = 4.2
@@ -98,11 +98,11 @@ class EnergyBalanceModelEnv(gym.Env):
         self.min_B = 1.95
         self.max_B = 2.05
 
-        # self.min_a0 = 0.3
-        # self.max_a0 = 0.4
+        self.min_a0 = 0.3
+        self.max_a0 = 0.4
 
-        # self.min_a2 = 0.2
-        # self.max_a2 = 0.3
+        self.min_a2 = 0.2
+        self.max_a2 = 0.3
 
         self.min_temperature = -90
         self.max_temperature = 90
@@ -110,25 +110,25 @@ class EnergyBalanceModelEnv(gym.Env):
         self.action_space = spaces.Box(
             low=np.array(
                 [
-                    # self.min_D,
+                    self.min_D,
                     *[self.min_A for x in range(EBM_LATITUDES)],
                     *[self.min_B for x in range(EBM_LATITUDES)],
-                    # self.min_a0,
-                    # self.min_a2,
+                    self.min_a0,
+                    self.min_a2,
                 ],
                 dtype=np.float32,
             ),
             high=np.array(
                 [
-                    # self.max_D,
+                    self.max_D,
                     *[self.max_A for x in range(EBM_LATITUDES)],
                     *[self.max_B for x in range(EBM_LATITUDES)],
-                    # self.max_a0,
-                    # self.max_a2,
+                    self.max_a0,
+                    self.max_a2,
                 ],
                 dtype=np.float32,
             ),
-            shape=(2 * EBM_LATITUDES,),
+            shape=(2 * EBM_LATITUDES + 3,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
@@ -144,7 +144,7 @@ class EnergyBalanceModelEnv(gym.Env):
             ).reshape(
                 -1,
             ),
-            shape=(1 * EBM_LATITUDES,),  # (3 * EBM_LATITUDES,)
+            shape=(1 * EBM_LATITUDES,),
             dtype=np.float32,
         )
 
@@ -171,14 +171,14 @@ class EnergyBalanceModelEnv(gym.Env):
         return {"_": None}
 
     def _get_params(self):
-        # D = self.ebm.subprocess["diffusion"].D
+        D = self.ebm.subprocess["diffusion"].D
         A, B = self.ebm.subprocess["LW"].A / 1e2, self.ebm.subprocess["LW"].B
-        # a0, a2 = (
-        #     self.ebm.subprocess["albedo"].a0,
-        #     self.ebm.subprocess["albedo"].a2,
-        # )
+        a0, a2 = (
+            self.ebm.subprocess["albedo"].a0,
+            self.ebm.subprocess["albedo"].a2,
+        )
         params = np.array(
-            [*(A.reshape(-1)), *(B.reshape(-1))], dtype=np.float32
+            [D, *(A.reshape(-1)), *(B.reshape(-1)), a0, a2], dtype=np.float32
         )
         return params
 
@@ -204,22 +204,23 @@ class EnergyBalanceModelEnv(gym.Env):
         return state
 
     def step(self, action):
-        # D, a0, a2 = action[0], action[-2], action[-1]
         split_idx = EBM_LATITUDES
-        A = np.array(action[:split_idx]).reshape(-1, 1)
-        B = np.array(action[split_idx:]).reshape(-1, 1)
+        D = action[0]
+        A = np.array(action[1 : split_idx + 1]).reshape(-1, 1)
+        B = np.array(action[split_idx + 1 : -2]).reshape(-1, 1)
+        a0, a2 = action[-2], action[-1]
 
-        # D = np.clip(D, self.min_D, self.max_D)
+        D = np.clip(D, self.min_D, self.max_D)
         A = np.clip(A, self.min_A, self.max_A)
         B = np.clip(B, self.min_B, self.max_B)
-        # a0 = np.clip(a0, self.min_a0, self.max_a0)
-        # a2 = np.clip(a2, self.min_a2, self.max_a2)
+        a0 = np.clip(a0, self.min_a0, self.max_a0)
+        a2 = np.clip(a2, self.min_a2, self.max_a2)
 
-        # self.ebm.subprocess["diffusion"].D = D
+        self.ebm.subprocess["diffusion"].D = D
         self.ebm.subprocess["LW"].A = A * 1e2
         self.ebm.subprocess["LW"].B = B
-        # self.ebm.subprocess["albedo"].a0 = a0
-        # self.ebm.subprocess["albedo"].a2 = a2
+        self.ebm.subprocess["albedo"].a0 = a0
+        self.ebm.subprocess["albedo"].a2 = a2
 
         self.ebm.step_forward()
         self.climlab_ebm.step_forward()
@@ -279,18 +280,21 @@ class EnergyBalanceModelEnv(gym.Env):
         # Left subplot: diffusivity as bar plot
         ax1 = fig.add_subplot(gs[0, 0])
 
-        ax1_labels = ["A", "B"]
+        ax1_labels = ["D", "A", "B", "a0", "a2"]
         ax1_colors = [
+            "tab:blue",
+            "tab:blue",
+            "tab:blue",
             "tab:blue",
             "tab:blue",
         ]
         ax1_bars = ax1.bar(
             ax1_labels,
             [
-                # params[0],
-                np.mean(params[:EBM_LATITUDES]),
-                np.mean(params[EBM_LATITUDES:]),
-                # *params[-2:],
+                params[0],
+                np.mean(params[1 : EBM_LATITUDES + 1]),
+                np.mean(params[EBM_LATITUDES + 1 : -2]),
+                *params[-2:],
             ],
             color=ax1_colors,
             width=0.75,

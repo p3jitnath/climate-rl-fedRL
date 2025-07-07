@@ -31,8 +31,9 @@ class EnergyBalanceModelEnv(gym.Env):
 
         print(f"[RL Env] Environment ID: {self.cid}", flush=True)
 
-        # self.min_D = 0.55
-        # self.max_D = 0.65
+        self.D = 0.6
+        self.min_D = 0.55
+        self.max_D = 0.65
 
         self.A = 2.1
         self.min_A = 1.4
@@ -42,11 +43,13 @@ class EnergyBalanceModelEnv(gym.Env):
         self.min_B = 1.95
         self.max_B = 2.05
 
-        # self.min_a0 = 0.3
-        # self.max_a0 = 0.4
+        self.a0 = 0.354
+        self.min_a0 = 0.3
+        self.max_a0 = 0.4
 
-        # self.min_a2 = 0.2
-        # self.max_a2 = 0.3
+        self.a2 = 0.25
+        self.min_a2 = 0.2
+        self.max_a2 = 0.3
 
         self.min_temperature = -90
         self.max_temperature = 90
@@ -54,25 +57,25 @@ class EnergyBalanceModelEnv(gym.Env):
         self.action_space = spaces.Box(
             low=np.array(
                 [
-                    # self.min_D,
+                    self.min_D,
                     *[self.min_A for _ in range(EBM_SUBLATITUDES)],
                     *[self.min_B for _ in range(EBM_SUBLATITUDES)],
-                    # self.min_a0,
-                    # self.min_a2,
+                    self.min_a0,
+                    self.min_a2,
                 ],
                 dtype=np.float32,
             ),
             high=np.array(
                 [
-                    # self.max_D,
+                    self.max_D,
                     *[self.max_A for _ in range(EBM_SUBLATITUDES)],
                     *[self.max_B for _ in range(EBM_SUBLATITUDES)],
-                    # self.max_a0,
-                    # self.max_a2,
+                    self.max_a0,
+                    self.max_a2,
                 ],
                 dtype=np.float32,
             ),
-            shape=(EBM_SUBLATITUDES * 2,),
+            shape=(2 * EBM_SUBLATITUDES + 2,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
@@ -104,7 +107,7 @@ class EnergyBalanceModelEnv(gym.Env):
         # self.reset(self.seed)
 
     def _get_params(self):
-        return np.array([self.A, self.B], dtype=np.float32)
+        return np.array([self.A, self.B, self.a0, self.a2], dtype=np.float32)
 
     def _get_obs(self):
         return np.array(self.state, dtype=np.float32)
@@ -113,21 +116,28 @@ class EnergyBalanceModelEnv(gym.Env):
         return {"_": None}
 
     def step(self, action):
-        # D, A, B, a0, a2 = action
-        self.A, self.B = action[:EBM_SUBLATITUDES], action[EBM_SUBLATITUDES:]
+        self.D = action[0]
+        self.A, self.B = (
+            action[: EBM_SUBLATITUDES + 1],
+            action[EBM_SUBLATITUDES + 1 : -2],
+        )
+        self.a0, self.a2 = action[-2], action[-1]
 
         # Clip actions to the allowed range
-        # D = np.clip(D, self.min_D, self.max_D)
+        self.D = np.clip(self.D, self.min_D, self.max_D)
         self.A = np.clip(self.A, self.min_A, self.max_A)
         self.B = np.clip(self.B, self.min_B, self.max_B)
-        # a0 = np.clip(a0, self.min_a0, self.max_a0)
-        # a2 = np.clip(a2, self.min_a2, self.max_a2)
+        self.a0 = np.clip(self.a0, self.min_a0, self.max_a0)
+        self.a2 = np.clip(self.a2, self.min_a2, self.max_a2)
 
         # Send the parameters to Redis
         # print(f"[RL Env] sent: py2f_redis_s{self.cid}", flush=True)
         self.redis.put_tensor(
             f"py2f_redis_s{self.cid}",
-            np.array([self.A * 1e2, self.B], dtype=np.float32),
+            np.array(
+                [self.D, self.A * 1e2, self.B, self.a0, self.a2],
+                dtype=np.float32,
+            ),
         )
         # print(f"[RL Env] sent: SIGCOMPUTE_S{self.cid}", flush=True)
         self.redis.put_tensor(
@@ -215,14 +225,22 @@ class EnergyBalanceModelEnv(gym.Env):
         # Left subplot: diffusivity as bar plot
         ax1 = fig.add_subplot(gs[0, 0])
 
-        ax1_labels = ["A", "B"]
+        ax1_labels = ["D", "A", "B", "a0", "a2"]
         ax1_colors = [
+            "tab:blue",
+            "tab:blue",
+            "tab:blue",
             "tab:blue",
             "tab:blue",
         ]
         ax1_bars = ax1.bar(
             ax1_labels,
-            [np.mean(params[0]), np.mean(params[1])],
+            [
+                params[0],
+                np.mean(params[1]),
+                np.mean(params[2]),
+                *params[-2:],
+            ],
             color=ax1_colors,
             width=0.75,
         )

@@ -1,9 +1,9 @@
 import argparse
 import math
 
-import flwr as fl
-
 from flwr_client import generate_client_fn
+
+import flwr as fl
 
 
 def main():

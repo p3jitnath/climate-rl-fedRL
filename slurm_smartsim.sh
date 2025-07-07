@@ -112,6 +112,10 @@ function get_free_port() {
 port=$(get_free_port)
 redis_port=$(get_free_port)
 
+k=$(shuf -i 20-55 -n 1)
+min_port=$((k * 1000))
+max_port=$((min_port + 999))
+
 ip_head=$head_node_ip:$port
 export ip_head
 echo "IP Head: $ip_head"
@@ -124,8 +128,8 @@ echo "SSDB: $SSDB"
 echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
     ray start --head --node-ip-address="$head_node_ip" --port=$port \
-    --min-worker-port $min_port --max-worker-port $max_port \
-    --num-cpus "${SLURM_CPUS_PER_TASK}" --include-dashboard=False --block & \
+    --min-worker-port=$min_port --max-worker-port=$max_port \
+    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --block & \
     --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
     --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err"
 
@@ -139,9 +143,9 @@ for ((i = 1; i <= worker_num; i++)); do
     node_i=${nodes_array[$i]}
     echo "Starting WORKER $i at $node_i"
     srun --nodes=1 --ntasks=1 -w "$node_i" \
-        ray start --address "$ip_head" \
-        --min-worker-port $min_port --max-worker-port $max_port \
-        --num-cpus "${SLURM_CPUS_PER_TASK}" --block & \
+        ray start --address="$ip_head" \
+        --min-worker-port=$min_port --max-worker-port=$max_port \
+        --num-cpus="${SLURM_CPUS_PER_TASK}" --block & \
         --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
         --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err"
     sleep 30

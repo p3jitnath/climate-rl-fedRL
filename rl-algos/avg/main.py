@@ -16,6 +16,7 @@ import torch.optim as optim
 import tyro
 from avg_actor import Actor
 from avg_critic import Critic
+from avg_utils import TDErrorScaler
 from torch.utils.tensorboard import SummaryWriter
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
@@ -147,6 +148,7 @@ def make_env(
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env = gym.wrappers.FlattenObservation(env)
         env = gym.wrappers.NormalizeObservation(env)
+        env = gym.wrappers.ClipAction(env)
         env.action_space.seed(seed)
         return env
 
@@ -224,6 +226,7 @@ qf = Critic(envs, args.critic_layer_size).to(device)
 
 actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.actor_adam_lr)
 qf_optimizer = optim.Adam(list(qf.parameters()), lr=args.critic_adam_lr)
+td_error_scaler = TDErrorScaler()
 
 envs.single_observation_space.dtype = np.float32
 
@@ -257,6 +260,7 @@ if args.flwr_client is not None:
     fedRL.load_weights(0)
 
 # 1. start the game
+G = 0
 obs, _ = envs.reset(seed=args.seed)
 for global_step in range(1, args.total_timesteps + 1):
     # 2. retrieve action(s)
@@ -267,6 +271,10 @@ for global_step in range(1, args.total_timesteps + 1):
     next_obs, rewards, terminations, truncations, infos = envs.step(
         actions.detach().cpu().numpy()
     )
+
+    # 4. scale the returns
+    r_ent = rewards - args.alpha_lr * lprob.detach().item()
+    G += r_ent
 
     if "final_info" in infos:
         for info in infos["final_info"]:
@@ -290,7 +298,11 @@ for global_step in range(1, args.total_timesteps + 1):
                 f"{records_folder}/step_{global_step}.pkl", "wb"
             ) as file:
                 pickle.dump(obs, file)
+            td_error_scaler.update(reward=r_ent, gamma=0, G=G)
+            G = 0
             break
+    else:
+        td_error_scaler.update(reward=r_ent, gamma=args.gamma, G=None)
 
     # 5. training
     # 5a. calculate the Q loss
@@ -309,6 +321,9 @@ for global_step in range(1, args.total_timesteps + 1):
         torch.Tensor(rewards).to(device)
         + (1 - torch.Tensor(terminations).to(device)) * args.gamma * target_V
         - qf_a_values
+    )
+    delta /= torch.tensor(
+        td_error_scaler.sigma, dtype=torch.float32, device=device
     )
     qf_loss = delta**2
 

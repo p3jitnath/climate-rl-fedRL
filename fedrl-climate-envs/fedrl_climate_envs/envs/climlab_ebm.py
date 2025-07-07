@@ -162,17 +162,17 @@ while True:
 
         # 3. Perform model step
         params = np.array(params)
-        # D = np.mean(params[:, 0])
-        A = np.array(params[:, 0]).reshape(-1, 1)
-        B = np.array(params[:, 1]).reshape(-1, 1)
-        # a0 = np.mean(params[:, 3])
-        # a2 = np.mean(params[:, 4])
+        D = np.mean(params[:, 0])
+        A = np.array(params[:, 1]).reshape(-1, 1)
+        B = np.array(params[:, 2]).reshape(-1, 1)
+        a0 = np.mean(params[:, 3])
+        a2 = np.mean(params[:, 4])
 
-        # ebm.ebm.subprocess["diffusion"].D = D
+        ebm.ebm.subprocess["diffusion"].D = D
         ebm.ebm.subprocess["LW"].A = A
         ebm.ebm.subprocess["LW"].B = B
-        # ebm.ebm.subprocess["albedo"].a0 = a0
-        # ebm.ebm.subprocess["albedo"].a2 = a2
+        ebm.ebm.subprocess["albedo"].a0 = a0
+        ebm.ebm.subprocess["albedo"].a2 = a2
 
         ebm.ebm.step_forward()
         ebm.climlab_ebm.step_forward()
