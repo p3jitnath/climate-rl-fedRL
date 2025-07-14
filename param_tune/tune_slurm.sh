@@ -12,6 +12,11 @@
 #SBATCH --partition=standard
 #SBATCH --qos=high
 
+## SBATCH --account=orchid
+## SBATCH --partition=orchid
+## SBATCH --qos=orchid
+## SBATCH --gres=gpu:2
+
 source ~/miniconda3/etc/profile.d/conda.sh && conda activate venv
 BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 set -x
@@ -78,17 +83,17 @@ fi
 
 # __doc_head_address_start__
 
-# Checking the conda environment
+# checking the conda environment
 echo "PYTHON: $(which python)"
 
-# Getting the node names
+# getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 nodes_array=($nodes)
 
 head_node=${nodes_array[0]}
 head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
 
-# If we detect a space character in the head node IP, we'll
+# if we detect a space character in the head node IP, we'll
 # convert it to an ipv4 address. This step is optional.
 if [[ "$head_node_ip" == *" "* ]]; then
 IFS=' ' read -ra ADDR <<<"$head_node_ip"
@@ -116,7 +121,7 @@ echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
     ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --min-worker-port=$min_port --max-worker-port=$max_port \
-    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --num-gpus=0 --block &
+    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --num-gpus=0 --block & # --num-gpus=2
 
 # optional, though may be useful in certain versions of Ray < 1.0.
 sleep 30
@@ -130,7 +135,7 @@ for ((i = 1; i <= worker_num; i++)); do
     srun --nodes=1 --ntasks=1 -w "$node_i" \
         ray start --address="$ip_head" \
         --min-worker-port=$min_port --max-worker-port=$max_port \
-        --num-cpus="${SLURM_CPUS_PER_TASK}" --num-gpus=0 --block &
+        --num-cpus="${SLURM_CPUS_PER_TASK}" --num-gpus=0 --block & # --num-gpus=2
     sleep 30
 done
 

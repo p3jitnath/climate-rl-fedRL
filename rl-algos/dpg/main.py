@@ -316,10 +316,11 @@ for global_step in range(1, args.total_timesteps + 1):
             writer.add_scalar(
                 "charts/episodic_length", info["episode"]["l"], global_step
             )
-            with open(
-                f"{records_folder}/step_{global_step}.pkl", "wb"
-            ) as file:
-                pickle.dump(obs, file)
+            if not args.optimise:
+                with open(
+                    f"{records_folder}/step_{global_step}.pkl", "wb"
+                ) as file:
+                    pickle.dump(obs, file)
             break
 
     # # 4. [skip] save data to replay buffer
