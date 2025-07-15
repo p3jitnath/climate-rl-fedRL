@@ -23,7 +23,7 @@ class Actor(nn.Module):
         )
 
     def get_action(self, x, action=None):
-        action_mean = self.actor_mean(x)
+        action_mean = self.actor_mean(x)  # add 1e-6 if facing issue with nans
         action_logstd = self.actor_logstd.expand_as(action_mean)
         action_std = torch.exp(action_logstd)
         probs = torch.distributions.Normal(action_mean, action_std)

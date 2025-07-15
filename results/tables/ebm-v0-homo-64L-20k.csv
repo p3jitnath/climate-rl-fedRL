@@ -1,0 +1,10 @@
+algo,steps_to_threshold,mean_at_threshold,var_after_threshold,diff_from_20k@20k,abs_diff_from_20k@20k,final_score
+tqc,1400.0,-10813.31884765625,23900.724091321084,2614.1043945312504,2614.1043945312504,4.0
+sac,3600.0,-12110.30859375,643515.1909346959,600.1678710937504,600.1678710937504,15.0
+ddpg,,,,,,
+dpg,,,,,,
+ppo,,,,,,
+reinforce,,,,,,
+td3,,,,,,
+trpo,,,,,,
+avg,,,,,,

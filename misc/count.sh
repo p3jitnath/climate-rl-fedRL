@@ -15,7 +15,7 @@ done
 echo
 
 # Loop over top-level run directories
-for top_dir in "$BASE_DIR"/runs/*/; do
+for top_dir in "$BASE_DIR"/records/*; do
   run_name=$(basename "$top_dir")
   printf "%-50s" "$run_name"
   for algo in "${ALGOS[@]}"; do
