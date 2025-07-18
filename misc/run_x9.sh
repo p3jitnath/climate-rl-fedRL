@@ -44,18 +44,18 @@ fi
 BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
-# ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
-ALGOS=("tqc")
+ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
+# ALGOS=("tqc")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
-NOW=$(date +%F_%H-%M)
-# NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "x9_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^x9_${TAG}_//")
+# NOW=$(date +%F_%H-%M)
+NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "x9_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^x9_${TAG}_//")
 WANDB_GROUP="x9_${TAG}_${NOW}"
 echo $WANDB_GROUP
 
 # 5. Loop through each algorithm and execute the script for multiple seeds
 for ALGO in "${ALGOS[@]}"; do
-    for SEED in {2..2}; do
+    for SEED in {2..10}; do
         # Submit each algorithm run as a separate Slurm job
         sbatch <<EOT
 #!/bin/bash
@@ -71,6 +71,10 @@ for ALGO in "${ALGOS[@]}"; do
 #SBATCH --account=ai4er
 #SBATCH --partition=standard
 #SBATCH --qos=high
+
+## SBATCH --account=ai4er
+## SBATCH --partition=standard
+## SBATCH --qos=high
 
 ## SBATCH --account=orchid
 ## SBATCH --partition=orchid

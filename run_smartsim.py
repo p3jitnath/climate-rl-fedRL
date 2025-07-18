@@ -112,19 +112,19 @@ def main():
     #     batch_args=FLWR_SBATCH_ARGS
     # )
 
-    if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
-        # Start SCM processes with different seeds
-        scm_models = []
-        for cid in CLIENTS:
-            model = create_and_start_model(
-                exp,
-                f"SCM_{cid}",
-                f"{ENVIRONMENT_DIR}/{SCM_EXE}",
-                [str(cid)],
-                block=False,
-                # batch_settings=batch_settings
-            )
-            scm_models.append(model)
+    # if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
+    #     # Start SCM processes with different seeds
+    #     scm_models = []
+    #     for cid in CLIENTS:
+    #         model = create_and_start_model(
+    #             exp,
+    #             f"SCM_{cid}",
+    #             f"{ENVIRONMENT_DIR}/{SCM_EXE}",
+    #             [str(cid)],
+    #             block=False,
+    #             # batch_settings=batch_settings
+    #         )
+    #         scm_models.append(model)
 
     if ENV_ID in ["EnergyBalanceModel-v3"]:
         ebm_model = create_and_start_model(
@@ -152,8 +152,8 @@ def main():
     wait_for_completion(exp, [flwr_model], label="FLWR")
 
     # Stop all processes after completion
-    if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
-        exp.stop(*scm_models)
+    # if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
+    #     exp.stop(*scm_models)
     if ENV_ID in ["EnergyBalanceModel-v3"]:
         exp.stop(ebm_model)
     exp.stop(redis_model)

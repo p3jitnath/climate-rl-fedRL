@@ -143,6 +143,47 @@ class Args:
                         setattr(self, key, value)
 
 
+class RecordSteps:
+    def __init__(self, steps_folder, optimise):
+        self.steps_folder = steps_folder
+        self.optimise = optimise
+        self._clear()
+
+    def _clear(self):
+        self.global_steps = []
+        self.obs = []
+        self.next_obs = []
+        self.actions = []
+        self.rewards = []
+
+    def reset(self):
+        self._clear()
+
+    def add(self, global_step, obs, next_obs, actions, rewards):
+        if not self.optimise:
+            self.global_steps.append(global_step)
+            self.obs.append(obs)
+            self.next_obs.append(next_obs)
+            self.actions.append(actions)
+            self.rewards.append(rewards)
+
+    def save(self, global_step, agent, episodic_return):
+        if not self.optimise:
+            torch.save(
+                {
+                    "global_steps": np.array(self.global_steps).squeeze(),
+                    "obs": np.array(self.obs).squeeze(),
+                    "next_obs": np.array(self.next_obs).squeeze(),
+                    "actions": np.array(self.actions).squeeze(),
+                    "rewards": np.array(self.rewards).squeeze(),
+                    "agent": agent.state_dict(),
+                    "episodic_return": episodic_return,
+                },
+                f"{self.steps_folder}/step_{global_step}.pth",
+            )
+            self.reset()
+
+
 def make_env(
     env_id, seed, cid, idx, capture_video, run_name, gamma, capture_video_freq
 ):
@@ -195,9 +236,9 @@ if args.flwr_client is not None:
 else:
     run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
-if not args.optimise:
-    records_folder = f"{BASE_DIR}/records/{run_name}"
-    os.makedirs(records_folder, exist_ok=True)
+records_folder = f"{BASE_DIR}/records/{run_name}"
+os.makedirs(records_folder, exist_ok=True)
+rs = RecordSteps(records_folder, args.optimise)
 
 if args.track:
     import wandb
@@ -356,12 +397,21 @@ for iteration in range(1, args.num_iterations + 1):
                         info["episode"]["l"],
                         global_step,
                     )
-                    if not args.optimise:
-                        with open(
-                            f"{records_folder}/step_{global_step}.pkl", "wb"
-                        ) as file:
-                            pickle.dump(obs, file)
+                    if (
+                        global_step
+                        % (args.num_steps * args.capture_video_freq)
+                        == 0
+                    ):
+                        rs.save(global_step, agent, info["episode"]["r"])
                     break
+
+        rs.add(
+            global_step,
+            obs[step].cpu().numpy(),
+            next_obs.cpu().numpy(),
+            actions[step].detach().cpu().numpy(),
+            reward,
+        )
 
     # 4. bootstrap value if not done
     with torch.no_grad():
