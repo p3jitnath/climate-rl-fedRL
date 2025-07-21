@@ -54,9 +54,9 @@ export DISTRIBUTED=0
 
 # 1. Set experiment environment variables
 export RL_ALGO="ddpg"
-export ENV_ID="EnergyBalanceModel-v3"
+export ENV_ID="EnergyBalanceModel-v2"
 export OPTIM_GROUP="ebm-v1-optim-L-20k"
-export WANDB_GROUP="test"
+export WANDB_GROUP="ebm-v3-optim-L-20k"
 export FLWR_ACTOR="true"
 export FLWR_CRITICS="false"
 export SEED="0"

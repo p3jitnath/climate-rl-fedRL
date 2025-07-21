@@ -8,7 +8,7 @@ cd fedrl-climate-envs && pip install . && cd ..
 
 # 1a. Function to display usage
 usage() {
-    echo "Usage: $0 --tag <tag> --env_id <env_id> [--optim_group <optim_group>] [--flwr_actor <true|false>] [--flwr_critics <true|false>]"
+    echo "Usage: $0 --tag <tag> --env_id <env_id> [--optim_group <optim_group>] [--flwr_actor <true|false>] [--flwr_critics <true|false>] [--flwr_episodes <flwr_episodes>]"
     exit 1
 }
 
@@ -20,6 +20,7 @@ fi
 # 1c. Set default values
 FLWR_ACTOR=true
 FLWR_CRITICS=false
+FLWR_EPISODES=5
 OPTIM_GROUP=""
 
 # 1d. Parse command-line arguments
@@ -45,6 +46,10 @@ while [[ "$#" -gt 0 ]]; do
             FLWR_CRITICS="$2"
             shift 2
             ;;
+        --flwr_episodes) # Extract the flwr_episodes value
+            FLWR_EPISODES="$2"
+            shift 2
+            ;;
         *) # Handle unknown option
             usage
             ;;
@@ -67,7 +72,8 @@ fi
 BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
-ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "tqc" "avg")
+# ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "tqc" "avg")
+ALGOS=("ddpg")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 NOW=$(date +%F_%H-%M)
@@ -84,5 +90,6 @@ for ALGO in "${ALGOS[@]}"; do
            --wandb_group  "$WANDB_GROUP" \
            --flwr_actor   "$FLWR_ACTOR" \
            --flwr_critics "$FLWR_CRITICS" \
+           --flwr_episodes "$FLWR_EPISODES" \
            --seed 0
 done

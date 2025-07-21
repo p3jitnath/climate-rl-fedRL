@@ -53,6 +53,10 @@ while [ $# -gt 0 ]; do
       export FLWR_CRITICS="$2"
       shift 2
       ;;
+    --flwr_episodes)
+      export FLWR_EPISODES="$2"
+      shift 2
+      ;;
     --seed)
       export SEED="$2"
       shift 2
@@ -74,6 +78,7 @@ echo "TAG: $TAG"
 echo "WANDB_GROUP: $WANDB_GROUP"
 echo "FLWR_ACTOR: $FLWR_ACTOR"
 echo "FLWR_CRITICS: $FLWR_CRITICS"
+echo "FLWR_EPISODES: $FLWR_EPISODES"
 echo "OPTIM_GROUP: $OPTIM_GROUP"
 echo "SEED: $SEED"
 

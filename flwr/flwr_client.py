@@ -12,7 +12,8 @@ WANDB_GROUP = os.getenv("WANDB_GROUP")
 OPTIM_GROUP = os.getenv("OPTIM_GROUP", None)
 FLWR_ACTOR = bool(strtobool(os.getenv("FLWR_ACTOR")))
 FLWR_CRITICS = bool(strtobool(os.getenv("FLWR_CRITICS")))
-SEED = os.getenv("SEED")
+FLWR_EPISODES = int(os.getenv("FLWR_EPISODES"))
+SEED = int(os.getenv("SEED"))
 
 CRITIC_ALGOS = [
     ("avg", 1),
@@ -66,6 +67,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         self.cid = cid
         self.seed = SEED
+        self.flwr_episodes = FLWR_EPISODES
         self.is_distributed = is_distributed
 
         # SmartRedis setup
@@ -105,10 +107,13 @@ class FlowerClient(fl.client.NumPyClient):
             f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py""" + " "
         )
         cmd += f"""--env_id {ENV_ID} --wandb_group {WANDB_GROUP} --num_steps {EPISODE_LENGTH} """
-        cmd += f"--flwr_client {self.cid} --seed {self.seed}" + " "
+        cmd += (
+            f"--flwr_client {self.cid} --flwr_epsidoes {self.flwr_episodes} --seed {self.seed}"
+            + " "
+        )
         cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
         cmd += (
-            f"--critic_layer_size {self.critic_layer_size} --capture_video_freq 50"  # --no-capture_video
+            f"--critic_layer_size {self.critic_layer_size} --capture_video_freq 10"  # --no-capture_video
             + " "
         )
 
