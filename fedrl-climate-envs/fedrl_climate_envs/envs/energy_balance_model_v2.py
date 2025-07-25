@@ -10,7 +10,7 @@ from matplotlib.gridspec import GridSpec
 from smartredis import Client
 
 EBM_LATITUDES = 96
-NUM_CLIENTS = 2
+NUM_CLIENTS = int(os.getenv("NUM_CLIENTS", 2))
 EBM_SUBLATITUDES = EBM_LATITUDES // NUM_CLIENTS
 
 
@@ -67,6 +67,7 @@ class EnergyBalanceModelEnv(gym.Env):
         self.cid = cid
 
         print(f"[RL Env] Environment ID: {self.cid}", flush=True)
+        print(f"[RL Env] Number of clients: {NUM_CLIENTS}", flush=True)
 
         # self.max_D = self.min_D = (
         #     0.6  # Have to be kept constant for single latitude cases
@@ -126,17 +127,19 @@ class EnergyBalanceModelEnv(gym.Env):
         )
 
         self.render_mode = render_mode
+        self.inference = bool(int(os.environ.get("INFERENCE", 0)))
 
         # SmartRedis setup
-        self.REDIS_ADDRESS = os.getenv("SSDB")
-        if self.REDIS_ADDRESS is None:
-            raise EnvironmentError("SSDB environment variable is not set.")
-        self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
-        print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
+        if not self.inference:
+            self.REDIS_ADDRESS = os.getenv("SSDB")
+            if self.REDIS_ADDRESS is None:
+                raise EnvironmentError("SSDB environment variable is not set.")
+            self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
+            print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
 
-        self.redis.put_tensor(
-            f"SIGALIVE_S{self.cid}", np.array([1], dtype=np.int32)
-        )
+            self.redis.put_tensor(
+                f"SIGALIVE_S{self.cid}", np.array([1], dtype=np.int32)
+            )
 
         # self.reset(self.seed)
 

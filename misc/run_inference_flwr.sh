@@ -2,7 +2,7 @@
 
 # 1a. Function to display usage
 usage() {
-    echo "Usage: $0 --tag <tag> --env_id <env_id>"
+    echo "Usage: $0 --tag <tag> --env_id <env_id> --optim_group <optim_group> --num_clients <num_clients>"
     exit 1
 }
 
@@ -20,6 +20,14 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         --env_id) # Extract the env_id value
             ENV_ID="$2"
+            shift 2
+            ;;
+        --optim_group) # Extract the optim_group value
+            OPTIM_GROUP="$2"
+            shift 2
+            ;;
+        --num_clients) # Extract the num_clients value
+            NUM_CLIENTS="$2"
             shift 2
             ;;
         *) # Handle unknown option
@@ -40,12 +48,26 @@ if [ -z "$ENV_ID" ]; then
     usage
 fi
 
+# 1f. Check if OPTIM_GROUP is set
+if [ -z "$OPTIM_GROUP" ]; then
+    echo "Error: Optimisation group is required."
+    usage
+fi
+
+# 1f. Check if NUM_CLIENTS is set
+if [ -z "$NUM_CLIENTS" ]; then
+    echo "Error: Number of clients is required."
+    usage
+fi
+
 # 2. Define the base directory
 BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
-ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
+# ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
 # ALGOS=("tqc")
+ALGOS=("ddpg" "td3")
+# ALGOS=("sac")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 NOW=$(date +%F_%H-%M)
@@ -55,19 +77,21 @@ echo $WANDB_GROUP
 
 # 5. Loop through each algorithm and execute the script
 for ALGO in "${ALGOS[@]}"; do
-    # Submit each algorithm run as a separate Slurm job
-    sbatch <<EOT
+    for SEED in {1..10}; do
+        for FLWR_CLIENT in $(seq 0 $((NUM_CLIENTS - 1))); do
+            # Submit each algorithm run as a separate Slurm job
+        sbatch <<EOT
 #!/bin/bash
 
-#SBATCH --job-name=pn341_${ALGO}_${TAG}
-#SBATCH --output=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_%a_%A.out
-#SBATCH --error=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_%a_%A.err
+#SBATCH --job-name=pn341_${ALGO}_${TAG}_${FLWR_CLIENT}
+#SBATCH --output=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.out
+#SBATCH --error=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=03:00:00
-#SBATCH --array=1-10
+#SBATCH --array=1-1
 #SBATCH --account=ai4er
 #SBATCH --partition=standard
 #SBATCH --qos=high
@@ -86,7 +110,12 @@ for ALGO in "${ALGOS[@]}"; do
 conda activate venv
 cd "$BASE_DIR"
 export WANDB_MODE=offline
-python -u "$BASE_DIR/rl-algos/inference.py" --env_id "$ENV_ID" --algo $ALGO --optim_group "$TAG" --wandb_group "$WANDB_GROUP" --seed \${SLURM_ARRAY_TASK_ID} --num_steps 200 --record_step 20000
+export INFERENCE=1
+export NUM_CLIENTS=$NUM_CLIENTS
+
+python -u "$BASE_DIR/rl-algos/inference.py" --env_id "$ENV_ID" --algo $ALGO --optim_group "$OPTIM_GROUP" --wandb_group "$WANDB_GROUP" --flwr_client $FLWR_CLIENT --seed $SEED --capture_video --num_steps 200 --record_step 20000
 EOT
-    # sleep 60
+        # sleep 60
+        done
+    done
 done

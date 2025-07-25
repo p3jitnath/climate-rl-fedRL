@@ -11,6 +11,7 @@
 #SBATCH --account=ai4er
 #SBATCH --partition=standard
 #SBATCH --qos=high
+#SBATCH --nodelist=host[1201-1272]
 
 BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
 

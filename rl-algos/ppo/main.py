@@ -237,7 +237,8 @@ else:
     run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
 records_folder = f"{BASE_DIR}/records/{run_name}"
-os.makedirs(records_folder, exist_ok=True)
+if not args.optimise:
+    os.makedirs(records_folder, exist_ok=True)
 rs = RecordSteps(records_folder, args.optimise)
 
 if args.track:
@@ -318,7 +319,7 @@ start_time = time.time()
 # initialise for federated learning
 if args.flwr_client is not None:
 
-    weights_folder = f"{BASE_DIR}/weights/{run_name}"
+    weights_folder = f"{BASE_DIR}/records/{run_name}/fedrl-weights"
     os.makedirs(f"{weights_folder}/agent", exist_ok=True)
 
     fedRL = FedRL(

@@ -77,7 +77,7 @@ class FedRL:
             if self.weights_folder:
                 torch.save(
                     self.agent.state_dict(),
-                    f"{self.weights_folder}/agent/agent-fedRL-{step_count}.pt",
+                    f"{self.weights_folder}/agent/agent-fedRL-{step_count}.pth",
                 )
 
             agent_diff_norm = sum(
@@ -122,7 +122,7 @@ class FedRL:
             if self.weights_folder:
                 torch.save(
                     self.actor.state_dict(),
-                    f"{self.weights_folder}/actor/actor-fedRL-{step_count}.pt",
+                    f"{self.weights_folder}/actor/actor-fedRL-{step_count}.pth",
                 )
 
             actor_diff_norm = sum(
@@ -171,7 +171,7 @@ class FedRL:
                 for idx, critic in enumerate(self.critics):
                     torch.save(
                         critic.state_dict(),
-                        f"{self.weights_folder}/critic/critic-{idx}-fedRL-{step_count}.pt",
+                        f"{self.weights_folder}/critic/critic-{idx}-fedRL-{step_count}.pth",
                     )
 
             new_critic_params = [
@@ -202,11 +202,11 @@ class FedRL:
             self.redis.put_tensor(
                 f"agent_network_weights_c2g_s{self.cid}", agent_weights
             )
-            if self.weights_folder:
-                torch.save(
-                    self.agent.state_dict(),
-                    f"{self.weights_folder}/agent/agent-{step_count}.pt",
-                )
+            # if self.weights_folder:
+            #     torch.save(
+            #         self.agent.state_dict(),
+            #         f"{self.weights_folder}/agent/agent-{step_count}.pth",
+            #     )
             # print('[RL Agent] Agent', self.cid, 'S', weights[0:5], flush=True)
 
         # 1. Actor
@@ -220,11 +220,11 @@ class FedRL:
             self.redis.put_tensor(
                 f"actor_network_weights_c2g_s{self.cid}", actor_weights
             )
-            if self.weights_folder:
-                torch.save(
-                    self.actor.state_dict(),
-                    f"{self.weights_folder}/actor/actor-{step_count}.pt",
-                )
+            # if self.weights_folder:
+            #     torch.save(
+            #         self.actor.state_dict(),
+            #         f"{self.weights_folder}/actor/actor-{step_count}.pth",
+            #     )
             # print('[RL Agent] Actor', self.cid, 'S', actor_weights[0:5], flush=True)
 
         # 2. Critic
@@ -240,12 +240,12 @@ class FedRL:
                 f"critic_network_weights_c2g_s{self.cid}",
                 critic_weights,
             )
-            if self.weights_folder:
-                for idx, critic in enumerate(self.critics):
-                    torch.save(
-                        critic.state_dict(),
-                        f"{self.weights_folder}/critic/critic-{idx}-{step_count}.pt",
-                    )
+            # if self.weights_folder:
+            #     for idx, critic in enumerate(self.critics):
+            #         torch.save(
+            #             critic.state_dict(),
+            #             f"{self.weights_folder}/critic/critic-{idx}-{step_count}.pth",
+            #         )
             # print('[RL Agent] Critic', self.cid, 'S', critic_weights[0:5], flush=True)
 
     # load the current global replay buffer from Redis

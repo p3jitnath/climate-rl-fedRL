@@ -232,9 +232,14 @@ assert isinstance(
     envs.single_action_space, gym.spaces.Box
 ), "only continuous action space is supported"
 
-record_fn = glob.glob(
-    f"{BASE_DIR}/records/*{args.exp_id}_*/*_{args.algo}_*{args.seed}_*/*{args.record_step}.pth"
-)[0]
+if args.flwr_client is not None:
+    record_fn = glob.glob(
+        f"{BASE_DIR}/records/*{args.exp_id}_*/*_{args.algo}_*{args.seed}__{args.flwr_client}_*/*{args.record_step}.pth"
+    )[0]
+else:
+    record_fn = glob.glob(
+        f"{BASE_DIR}/records/*{args.exp_id}_*/*_{args.algo}_*{args.seed}_*/*{args.record_step}.pth"
+    )[0]
 
 if args.algo == "ppo":
     Agent = get_agent(args.algo)

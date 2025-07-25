@@ -16,8 +16,9 @@ CLIMLAB_EXE = "climlab_ebm.py"
 RL_ALGO = os.getenv("RL_ALGO")
 WANDB_GROUP = os.getenv("WANDB_GROUP")
 ENV_ID = os.getenv("ENV_ID")
+SEED = os.getenv("SEED")
 
-NUM_CLIENTS = 2
+NUM_CLIENTS = int(os.getenv("NUM_CLIENTS"))
 CLIENTS = [x for x in range(NUM_CLIENTS)]  # Add more clients here if needed
 
 # SBATCH_ARGS = {
@@ -88,9 +89,10 @@ def wait_for_completion(exp, models, label=""):
 
 def main():
     # Initialise SmartSim Experiment
-    exp = Experiment(
-        f"SM-FLWR_Orchestrator_{RL_ALGO}_{WANDB_GROUP}", launcher="local"
-    )
+    exp_name = f"SM-FLWR_Orchestrator_{RL_ALGO}_{WANDB_GROUP}_{SEED}"
+    exp_dir = f"{BASE_DIR}/SM-FLWR/{exp_name}"
+    os.makedirs(exp_dir, exist_ok=True)
+    exp = Experiment(exp_name, exp_path=exp_dir, launcher="local")
 
     # Retrieve Redis port and start Redis database
     interfaces = list(psutil.net_if_addrs().keys())
