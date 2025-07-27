@@ -1,14 +1,8 @@
 #!/bin/sh
 
-# 0a. Perform cleanup
-rm -rf SM-FLWR_Orchestrator_*
-
-# 0b. Update climateRL environments
-cd fedrl-climate-envs && pip install . && cd ..
-
 # 1a. Function to display usage
 usage() {
-    echo "Usage: $0 --tag <tag> --env_id <env_id> [--optim_group <optim_group>] [--flwr_actor <true|false>] [--flwr_critics <true|false>] [--flwr_episodes <flwr_episodes>]"
+    echo "Usage: $0 --tag <tag> --env_id <env_id> [--optim_group <optim_group>] [--flwr_actor <true|false>] [--flwr_critics <true|false>] [--flwr_episodes <flwr_episodes>] [--num_clients <num_clients>]"
     exit 1
 }
 
@@ -21,6 +15,7 @@ fi
 FLWR_ACTOR=true
 FLWR_CRITICS=false
 FLWR_EPISODES=5
+NUM_CLIENTS=2
 OPTIM_GROUP=""
 
 # 1d. Parse command-line arguments
@@ -50,6 +45,10 @@ while [[ "$#" -gt 0 ]]; do
             FLWR_EPISODES="$2"
             shift 2
             ;;
+        --num_clients) # Extract the num_clients value
+            NUM_CLIENTS="$2"
+            shift 2
+            ;;
         *) # Handle unknown option
             usage
             ;;
@@ -72,24 +71,30 @@ fi
 BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
-# ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "tqc" "avg")
-ALGOS=("ddpg")
+# ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
+# ALGOS=("tqc")
+ALGOS=("ddpg" "td3")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
-NOW=$(date +%F_%H-%M)
+# NOW=$(date +%F_%H-%M)
+NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^${TAG}_//")
 WANDB_GROUP="${TAG}_${NOW}"
+echo $WANDB_GROUP
 
 # 5. Loop through each algorithm and execute the script
 for ALGO in "${ALGOS[@]}"; do
-    # Submit each algorithm run as a separate Slurm job
-    sbatch slurm_smartsim.sh \
-           --rl_algo   "$ALGO" \
-           --env_id    "$ENV_ID" \
-           ${OPTIM_GROUP:+--optim_group "$OPTIM_GROUP"} \
-           --tag "$TAG" \
-           --wandb_group  "$WANDB_GROUP" \
-           --flwr_actor   "$FLWR_ACTOR" \
-           --flwr_critics "$FLWR_CRITICS" \
-           --flwr_episodes "$FLWR_EPISODES" \
-           --seed 0
+    for SEED in {1..10}; do
+        # Submit each algorithm run as a separate Slurm job
+        sbatch slurm_smartsim.sh \
+            --rl_algo   "$ALGO" \
+            --env_id    "$ENV_ID" \
+            ${OPTIM_GROUP:+--optim_group "$OPTIM_GROUP"} \
+            --tag "$TAG" \
+            --wandb_group  "$WANDB_GROUP" \
+            --flwr_actor   "$FLWR_ACTOR" \
+            --flwr_critics "$FLWR_CRITICS" \
+            --flwr_episodes "$FLWR_EPISODES" \
+            --num_clients "$NUM_CLIENTS" \
+            --seed $SEED
+    done
 done

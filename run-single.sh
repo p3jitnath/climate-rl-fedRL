@@ -2,7 +2,9 @@
 # Stop all pending ray processes
 
 # ray stop --force
-rm -rf SM-FLWR_Orchestrator_*
+BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+
+# rm -rf ${BASE_DIR}/SM-FLWR/*
 
 export SSDB=localhost:6380
 export DISTRIBUTED=0
@@ -53,14 +55,16 @@ export DISTRIBUTED=0
 # fi
 
 # 1. Set experiment environment variables
-export RL_ALGO="ddpg"
+export RL_ALGO="tqc"
 export ENV_ID="EnergyBalanceModel-v2"
 export OPTIM_GROUP="ebm-v1-optim-L-20k"
-export WANDB_GROUP="ebm-v3-optim-L-20k"
+export WANDB_GROUP="ebm-v2-test-a6-fed05"
 export FLWR_ACTOR="true"
 export FLWR_CRITICS="false"
-export SEED="0"
+export FLWR_EPISODES=5
+export NUM_CLIENTS=2
+export SEED=1
 
 # 1. Run smartsim
-cd fedrl-climate-envs && pip install . && cd ..
+# cd fedrl-climate-envs && pip install . && cd ..
 python run_smartsim.py

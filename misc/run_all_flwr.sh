@@ -1,18 +1,42 @@
 BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
+# Perform cleanup
+# rm -rf SM-FLWR/*
+
+# Update climateRL environments
+# cd fedrl-climate-envs && pip install . && cd ..
+
 # ebm-v2
+# n_clients = 6
 
 # flwr_actor ONLY
-source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-a-5" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --flwr_episodes 5
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-a-10" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --flwr_episodes 10
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-a-1000" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --flwr_episodes 1000
+# source "$BASE_DIR/run-distributed.sh" --tag "ebm-v2-optim-L-20k-a6-fed05" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --num_clients 6 --flwr_episodes 5
+# source "$BASE_DIR/run-distributed.sh" --tag "ebm-v2-optim-L-20k-a6-fed10" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --num_clients 6 --flwr_episodes 10
+# source "$BASE_DIR/run-distributed.sh" --tag "ebm-v2-optim-L-20k-a6-nofed" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --num_clients 6 --flwr_episodes 125  # max: 100
 
-# flwr_critic ONLY
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-c-5" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor false --flwr_critics true --flwr_episodes 5
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-c-10" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor false --flwr_critics true --flwr_episodes 10
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-c-1000" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor false --flwr_critics true --flwr_episodes 1000
+# ebm-v2
+# n_clients = 2
 
-# flwr_actor and flwr_critic
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-ac-5" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics true --flwr_episodes 5
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-ac-10" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics true --flwr_episodes 10
-# source "$BASE_DIR/run_distributed.sh" --tag "ebm-v2-optim-L-20k-ac-1000" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics true --flwr_episodes 1000
+# flwr_actor ONLY
+# source "$BASE_DIR/run-distributed.sh" --tag "ebm-v2-optim-L-20k-a2-fed05" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --num_clients 2 --flwr_episodes 5
+# source "$BASE_DIR/run-distributed.sh" --tag "ebm-v2-optim-L-20k-a2-fed10" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --num_clients 2 --flwr_episodes 10
+# source "$BASE_DIR/run-distributed.sh" --tag "ebm-v2-optim-L-20k-a2-nofed" --env_id "EnergyBalanceModel-v2" --optim_group "ebm-v1-optim-L-20k" --flwr_actor true --flwr_critics false --num_clients 2 --flwr_episodes 125  # max: 100
+
+
+# # ------
+
+# ebm-v2 - inference
+
+# source "$BASE_DIR/misc/run_inference_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a6-fed05" --optim_group "ebm-v1-optim-L-20k" --num_clients 6
+# source "$BASE_DIR/misc/run_inference_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a6-fed10" --optim_group "ebm-v1-optim-L-20k" --num_clients 6
+# source "$BASE_DIR/misc/run_inference_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a6-nofed" --optim_group "ebm-v1-optim-L-20k" --num_clients 6
+
+# source "$BASE_DIR/misc/run_inference_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a2-fed05" --optim_group "ebm-v1-optim-L-20k" --num_clients 2
+# source "$BASE_DIR/misc/run_inference_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a2-fed10" --optim_group "ebm-v1-optim-L-20k" --num_clients 2
+# source "$BASE_DIR/misc/run_inference_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a2-nofed" --optim_group "ebm-v1-optim-L-20k" --num_clients 2
+
+# source "$BASE_DIR/misc/run_inference_global_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a6-fed05" --optim_group "ebm-v1-optim-L-20k" --num_clients 6
+# source "$BASE_DIR/misc/run_inference_global_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a6-fed10" --optim_group "ebm-v1-optim-L-20k" --num_clients 6
+
+# source "$BASE_DIR/misc/run_inference_global_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a2-fed05" --optim_group "ebm-v1-optim-L-20k" --num_clients 2
+# source "$BASE_DIR/misc/run_inference_global_flwr.sh" --env_id "EnergyBalanceModel-v2" --tag "ebm-v2-optim-L-20k-a2-fed10" --optim_group "ebm-v1-optim-L-20k" --num_clients 2

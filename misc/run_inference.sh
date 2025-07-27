@@ -46,7 +46,6 @@ BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 # 3. List of algorithms
 ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
 # ALGOS=("tqc")
-# ALGOS=("trpo")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 NOW=$(date +%F_%H-%M)
@@ -72,10 +71,12 @@ for ALGO in "${ALGOS[@]}"; do
 #SBATCH --account=ai4er
 #SBATCH --partition=standard
 #SBATCH --qos=high
+#SBATCH --nodelist=host[1201-1272]
 
 ## SBATCH --account=ai4er
 ## SBATCH --partition=standard
 ## SBATCH --qos=high
+## SBATCH --nodelist=host[1201-1272]
 
 ## SBATCH --account=orchid
 ## SBATCH --partition=orchid

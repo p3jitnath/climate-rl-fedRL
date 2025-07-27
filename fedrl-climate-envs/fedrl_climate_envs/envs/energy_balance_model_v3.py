@@ -9,7 +9,7 @@ from matplotlib.gridspec import GridSpec
 from smartredis import Client
 
 EBM_LATITUDES = 96
-NUM_CLIENTS = 2
+NUM_CLIENTS = int(os.getenv("NUM_CLIENTS", 2))
 EBM_SUBLATITUDES = EBM_LATITUDES // NUM_CLIENTS
 
 
@@ -30,6 +30,7 @@ class EnergyBalanceModelEnv(gym.Env):
         self.cid = cid
 
         print(f"[RL Env] Environment ID: {self.cid}", flush=True)
+        print(f"[RL Env] Number of clients: {NUM_CLIENTS}", flush=True)
 
         self.D = 0.6
         self.min_D = 0.55

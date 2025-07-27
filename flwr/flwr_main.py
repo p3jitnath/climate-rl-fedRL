@@ -10,6 +10,11 @@ from flwr_client import generate_client_fn
 import flwr as fl
 from flwr.common import FitIns
 
+EPISODE_LENGTH = 200
+TOTAL_TIMESTEPS = 20000
+FLWR_EPISODES = int(os.getenv("FLWR_EPISODES"))
+MAX_EPISODES = TOTAL_TIMESTEPS // EPISODE_LENGTH
+
 
 class FedAvgWithBuffer(fl.server.strategy.FedAvg):
     def __init__(
@@ -89,6 +94,7 @@ def main():
     args = parser.parse_args()
     num_clients = args.num_clients
     is_distributed = bool(int(os.environ.get("DISTRIBUTED", 0)))
+    print("num_clients:", num_clients, flush=True)
     print("is_distributed:", is_distributed, flush=True)
 
     # Define the client function
@@ -105,22 +111,27 @@ def main():
     ray_init_args = None
     if not is_distributed:
         total_cpus = num_clients * 3 + 1  # Each client gets 3 CPUs + 1 extra
-        total_gpus = 0  # math.ceil(num_clients * 0.25)
+        total_gpus = 0  # 1 OR math.ceil(num_clients * 0.25)
         ray_init_args = {
             "num_cpus": total_cpus,
             "num_gpus": total_gpus,
         }
 
     # Start the simulation
+    num_rounds = (
+        1
+        if FLWR_EPISODES > MAX_EPISODES
+        else (TOTAL_TIMESTEPS // (EPISODE_LENGTH * FLWR_EPISODES)) + 2
+    )
     fl.simulation.start_simulation(
         client_fn=client_fn,
         num_clients=num_clients,
         strategy=strategy,
         ray_init_args=ray_init_args,
-        client_resources={"num_cpus": 3, "num_gpus": 0},
+        client_resources={"num_cpus": 3, "num_gpus": 1},  # "num_gpus": 0
         config=fl.server.ServerConfig(
-            num_rounds=25
-        ),  # +1 to have 1 extra round # steps = num_rounds * 200 * flwr_episodes
+            num_rounds=num_rounds
+        ),  # steps = num_rounds * 200 * flwr_episodes
     )
 
 

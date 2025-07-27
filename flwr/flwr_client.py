@@ -5,6 +5,7 @@ from distutils.util import strtobool
 
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 EPISODE_LENGTH = 200
+TOTAL_TIMESTEPS = 20000
 
 RL_ALGO = os.getenv("RL_ALGO")
 ENV_ID = os.getenv("ENV_ID")
@@ -12,6 +13,9 @@ WANDB_GROUP = os.getenv("WANDB_GROUP")
 OPTIM_GROUP = os.getenv("OPTIM_GROUP", None)
 FLWR_ACTOR = bool(strtobool(os.getenv("FLWR_ACTOR")))
 FLWR_CRITICS = bool(strtobool(os.getenv("FLWR_CRITICS")))
+FLWR_AGENT = (
+    True if RL_ALGO == "ppo" and (FLWR_ACTOR or FLWR_CRITICS) else False
+)
 FLWR_EPISODES = int(os.getenv("FLWR_EPISODES"))
 SEED = int(os.getenv("SEED"))
 
@@ -25,7 +29,21 @@ CRITIC_ALGOS = [
     ("tqc", 1),
 ]
 PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
-TQC_N_QUANTILES, TQC_N_CRITICS = 25, 5
+
+if OPTIM_GROUP and RL_ALGO == "tqc":
+    with open(
+        f"{BASE_DIR}/param_tune/results/{OPTIM_GROUP}/best_results.json",
+        "r",
+    ) as file:
+        opt_params = {
+            k: v
+            for k, v in json.load(file)[RL_ALGO].items()
+            if k not in {"algo", "episodic_return", "date"}
+        }
+        TQC_N_QUANTILES, TQC_N_CRITICS = (
+            opt_params["n_quantiles"],
+            opt_params["n_critics"],
+        )
 
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")
 
@@ -92,10 +110,13 @@ class FlowerClient(fl.client.NumPyClient):
                     for k, v in json.load(file)[RL_ALGO].items()
                     if k not in {"algo", "episodic_return", "date"}
                 }
-                for key, value in opt_params.items():
-                    if key == "actor_critic_layer_size":
-                        actor_critic_layer_size = value
-                        break
+                if "64L" in OPTIM_GROUP:
+                    actor_critic_layer_size = 64
+                else:
+                    for key, value in opt_params.items():
+                        if key == "actor_critic_layer_size":
+                            actor_critic_layer_size = value
+                            break
         else:
             actor_critic_layer_size = 256
 
@@ -104,18 +125,20 @@ class FlowerClient(fl.client.NumPyClient):
         )
 
         cmd = (
-            f"""{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py""" + " "
+            f"{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py "
+            f"--env_id {ENV_ID} "
+            f"--wandb_group {WANDB_GROUP} "
+            f"--num_steps {EPISODE_LENGTH} "
+            f"--flwr_client {self.cid} "
+            f"--flwr_episodes {self.flwr_episodes} "
+            f"--seed {self.seed} "
+            f"--actor_layer_size {self.actor_layer_size} "
+            f"--critic_layer_size {self.critic_layer_size} "
+            f"--capture_video_freq 10 "  # --no-capture_video
         )
-        cmd += f"""--env_id {ENV_ID} --wandb_group {WANDB_GROUP} --num_steps {EPISODE_LENGTH} """
-        cmd += (
-            f"--flwr_client {self.cid} --flwr_epsidoes {self.flwr_episodes} --seed {self.seed}"
-            + " "
-        )
-        cmd += f"--actor_layer_size {self.actor_layer_size}" + " "
-        cmd += (
-            f"--critic_layer_size {self.critic_layer_size} --capture_video_freq 10"  # --no-capture_video
-            + " "
-        )
+
+        if OPTIM_GROUP:
+            cmd += f"--optim_group {OPTIM_GROUP}" + " "
 
         for name, enabled in (
             ("flwr_actor", FLWR_ACTOR),
@@ -218,7 +241,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def get_parameters(self, config):
         # 0. Agent
-        # Wait for signal that actor network weights are available
+        # Wait for signal that agent network weights are available
         if self.agent:
             while not self.redis.tensor_exists(
                 f"agent_network_weights_c2g_s{self.cid}"

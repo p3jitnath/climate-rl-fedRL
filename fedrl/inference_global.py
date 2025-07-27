@@ -47,7 +47,7 @@ class Args:
     capture_video_freq: int = 10
     """episode frequency at which to capture video"""
 
-    env_id: str = "SimpleClimateBiasCorrection-v0"
+    env_id: str = "EnergyBalanceModel-v2"
     """the environment id of the environment"""
     algo: str = "ddpg"
     """the RL algorithm to be used"""
@@ -66,7 +66,7 @@ class Args:
 
     num_steps: int = 200
     """the number of steps to run in each environment per policy rollout"""
-    record_step: int = 60000
+    record_step: int = 20000
     """step count to load the run record"""
 
     flwr_client: Optional[int] = None
@@ -171,10 +171,7 @@ def get_agent(algo):
 
 
 args = tyro.cli(Args)
-if args.flwr_client is not None:
-    run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{args.flwr_client}__{int(time.time())}"
-else:
-    run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{args.flwr_client}__{int(time.time())}"
 
 records_folder = f"{BASE_DIR}/records/{run_name}"
 os.makedirs(records_folder, exist_ok=True)
@@ -232,28 +229,23 @@ assert isinstance(
     envs.single_action_space, gym.spaces.Box
 ), "only continuous action space is supported"
 
-if args.flwr_client is not None:
-    record_fn = glob.glob(
-        f"{BASE_DIR}/records/*{args.exp_id}_*/*_{args.algo}_*{args.seed}__{args.flwr_client}_*/*{args.record_step}.pth"
-    )[0]
-else:
-    record_fn = glob.glob(
-        f"{BASE_DIR}/records/{args.exp_id}_*/*_{args.algo}_torch__*{args.seed}_*/*{args.record_step}.pth"
-    )[0]
+weights_fn = glob.glob(
+    f"{BASE_DIR}/records/{args.exp_id}_*/*_{args.algo}_torch__{args.seed}__{args.flwr_client}*/fedrl-weights/actor/*{args.record_step}.pth"
+)[0]
 
 if args.algo == "ppo":
     Agent = get_agent(args.algo)
     agent = Agent(envs, args.actor_layer_size, args.critic_layer_size).to(
         device
     )
-    record_steps = torch.load(record_fn)
-    agent.load_state_dict(record_steps["agent"])
+    agent_weights = torch.load(weights_fn)
+    agent.load_state_dict(agent_weights)
     actor = agent
 else:
     Actor = get_actor(args.algo)
     actor = Actor(envs, args.actor_layer_size).to(device)
-    record_steps = torch.load(record_fn)
-    actor.load_state_dict(record_steps["actor"])
+    actor_weights = torch.load(weights_fn)
+    actor.load_state_dict(actor_weights)
 
 envs.single_observation_space.dtype = np.float32
 start_time = time.time()
