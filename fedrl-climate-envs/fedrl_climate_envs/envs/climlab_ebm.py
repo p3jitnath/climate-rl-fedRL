@@ -117,7 +117,8 @@ while True:
     #     print(f"[climlab EBM] exists.sigcompute: {exists.sigcompute}", flush=True)
 
     if np.sum(exists.sigstart) > 0:
-        ebm = ClimLabEBM(utils)
+        cebm = ClimLabEBM(utils)
+        cebm.EBM_SUBLATITUDES = EBM_LATITUDES // args.num_clients
 
         # 1. Send the initialised state and other reference variables to the RL agent
         for idx, cid in enumerate(range(args.num_clients)):
@@ -130,10 +131,10 @@ while True:
                     f"f2py_redis_s{cid}",
                     np.array(
                         [
-                            ebm.ebm.Ts,
-                            ebm.climlab_ebm.Ts,
-                            ebm.Ts_ncep_annual,
-                            np.array(ebm.ebm.lat).reshape(-1, 1),
+                            cebm.ebm.Ts,
+                            cebm.climlab_ebm.Ts,
+                            cebm.Ts_ncep_annual,
+                            np.array(cebm.ebm.lat).reshape(-1, 1),
                         ],
                         dtype=np.float32,
                     ),
@@ -163,19 +164,19 @@ while True:
         # 3. Perform model step
         params = np.array(params)
         D = np.mean(params[:, 0])
-        A = np.array(params[:, 1]).reshape(-1, 1)
-        B = np.array(params[:, 2]).reshape(-1, 1)
-        a0 = np.mean(params[:, 3])
-        a2 = np.mean(params[:, 4])
+        A = np.array(params[:, 1 : cebm.EBM_SUBLATITUDES + 1]).reshape(-1, 1)
+        B = np.array(params[:, cebm.EBM_SUBLATITUDES + 1 : -2]).reshape(-1, 1)
+        a0 = np.mean(params[:, -2])
+        a2 = np.mean(params[:, -1])
 
-        ebm.ebm.subprocess["diffusion"].D = D
-        ebm.ebm.subprocess["LW"].A = A
-        ebm.ebm.subprocess["LW"].B = B
-        ebm.ebm.subprocess["albedo"].a0 = a0
-        ebm.ebm.subprocess["albedo"].a2 = a2
+        cebm.ebm.subprocess["diffusion"].D = D
+        cebm.ebm.subprocess["LW"].A = A
+        cebm.ebm.subprocess["LW"].B = B
+        cebm.ebm.subprocess["albedo"].a0 = a0
+        cebm.ebm.subprocess["albedo"].a2 = a2
 
-        ebm.ebm.step_forward()
-        ebm.climlab_ebm.step_forward()
+        cebm.ebm.step_forward()
+        cebm.climlab_ebm.step_forward()
 
         # 4. Send the state to the RL agent
         for idx, cid in enumerate(range(args.num_clients)):
@@ -185,7 +186,7 @@ while True:
             # print(f"[climlab EBM] sent: f2py_redis_s{cid}", flush=True)
             utils.redis.put_tensor(
                 f"f2py_redis_s{cid}",
-                np.array([ebm.ebm.Ts, ebm.climlab_ebm.Ts], dtype=np.float32),
+                np.array([cebm.ebm.Ts, cebm.climlab_ebm.Ts], dtype=np.float32),
             )
 
         exists.params[:] = 0

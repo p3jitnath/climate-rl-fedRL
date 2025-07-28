@@ -36,11 +36,11 @@ class EnergyBalanceModelEnv(gym.Env):
         self.min_D = 0.55
         self.max_D = 0.65
 
-        self.A = 2.1
+        self.A = np.array([2.1 for x in range(EBM_SUBLATITUDES)])
         self.min_A = 1.4
         self.max_A = 4.2
 
-        self.B = 2
+        self.B = np.array([2 for x in range(EBM_SUBLATITUDES)])
         self.min_B = 1.95
         self.max_B = 2.05
 
@@ -76,7 +76,7 @@ class EnergyBalanceModelEnv(gym.Env):
                 ],
                 dtype=np.float32,
             ),
-            shape=(2 * EBM_SUBLATITUDES + 2,),
+            shape=(2 * EBM_SUBLATITUDES + 3,),
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(
@@ -108,7 +108,9 @@ class EnergyBalanceModelEnv(gym.Env):
         # self.reset(self.seed)
 
     def _get_params(self):
-        return np.array([self.A, self.B, self.a0, self.a2], dtype=np.float32)
+        return np.array(
+            [self.D, *(self.A), *(self.B), self.a0, self.a2], dtype=np.float32
+        )
 
     def _get_obs(self):
         return np.array(self.state, dtype=np.float32)
@@ -119,7 +121,7 @@ class EnergyBalanceModelEnv(gym.Env):
     def step(self, action):
         self.D = action[0]
         self.A, self.B = (
-            action[: EBM_SUBLATITUDES + 1],
+            action[1 : EBM_SUBLATITUDES + 1],
             action[EBM_SUBLATITUDES + 1 : -2],
         )
         self.a0, self.a2 = action[-2], action[-1]
@@ -136,7 +138,7 @@ class EnergyBalanceModelEnv(gym.Env):
         self.redis.put_tensor(
             f"py2f_redis_s{self.cid}",
             np.array(
-                [self.D, self.A * 1e2, self.B, self.a0, self.a2],
+                [self.D, *(self.A * 1e2), *(self.B), self.a0, self.a2],
                 dtype=np.float32,
             ),
         )
@@ -238,8 +240,8 @@ class EnergyBalanceModelEnv(gym.Env):
             ax1_labels,
             [
                 params[0],
-                np.mean(params[1]),
-                np.mean(params[2]),
+                np.mean(params[1 : EBM_SUBLATITUDES + 1]),
+                np.mean(params[EBM_SUBLATITUDES + 1 : -2]),
                 *params[-2:],
             ],
             color=ax1_colors,

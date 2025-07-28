@@ -156,7 +156,7 @@ echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
     ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --min-worker-port=$min_port --max-worker-port=$max_port \
-    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --num-gpus=1 --block & \
+    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --num-gpus=0 --block & \
     --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
     --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err" # --num-gpus=0
 
@@ -172,7 +172,7 @@ for ((i = 1; i <= worker_num; i++)); do
     srun --nodes=1 --ntasks=1 -w "$node_i" \
         ray start --address="$ip_head" \
         --min-worker-port=$min_port --max-worker-port=$max_port \
-        --num-cpus="${SLURM_CPUS_PER_TASK}" --num-gpus=1 --block & \
+        --num-cpus="${SLURM_CPUS_PER_TASK}" --num-gpus=0 --block & \
         --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
         --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err" # --num-gpus=0
     sleep 30

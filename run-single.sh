@@ -55,16 +55,16 @@ export DISTRIBUTED=0
 # fi
 
 # 1. Set experiment environment variables
-export RL_ALGO="tqc"
-export ENV_ID="EnergyBalanceModel-v2"
+export RL_ALGO="ddpg"
+export ENV_ID="EnergyBalanceModel-v3"
 export OPTIM_GROUP="ebm-v1-optim-L-20k"
-export WANDB_GROUP="ebm-v2-test-a6-fed05"
+export WANDB_GROUP="ebm-v3-test-a2-fed05"
 export FLWR_ACTOR="true"
 export FLWR_CRITICS="false"
 export FLWR_EPISODES=5
-export NUM_CLIENTS=2
+export NUM_CLIENTS=$(echo "$WANDB_GROUP" | grep -oP 'a\K[0-9]+')
 export SEED=1
 
 # 1. Run smartsim
-# cd fedrl-climate-envs && pip install . && cd ..
+cd fedrl-climate-envs && pip install . && cd ..
 python run_smartsim.py
