@@ -5,6 +5,7 @@ import json
 import os
 import pickle
 import random
+import socket
 import sys
 import time
 from dataclasses import dataclass
@@ -173,6 +174,7 @@ def get_agent(algo):
 args = tyro.cli(Args)
 if args.flwr_client is not None:
     run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{args.flwr_client}__{int(time.time())}"
+    # print(f"[INF {args.seed}-{args.flwr_client}]: hostname", socket.gethostname(), flush=True)
 else:
     run_name = f"{args.wandb_group}/{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 

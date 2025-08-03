@@ -1,4 +1,7 @@
 import os
+import random
+import socket
+import struct
 import time
 
 import psutil
@@ -16,34 +19,35 @@ CLIMLAB_EXE = "climlab_ebm.py"
 RL_ALGO = os.getenv("RL_ALGO")
 WANDB_GROUP = os.getenv("WANDB_GROUP")
 ENV_ID = os.getenv("ENV_ID")
+OPTIM_GROUP = os.getenv("OPTIM_GROUP")
 SEED = os.getenv("SEED")
+INFERENCE = bool(int(os.environ.get("INFERENCE", 0)))
+GLOBAL = bool(int(os.environ.get("GLOBAL", 0)))
 
 NUM_CLIENTS = int(os.getenv("NUM_CLIENTS"))
-CLIENTS = [x for x in range(NUM_CLIENTS)]  # Add more clients here if needed
-
-# SBATCH_ARGS = {
-#     "nodes": 1,
-#     "ntasks-per-node": 1,
-#     "cpus-per-task": 2,
-#     "mem-per-cpu": "8G",
-#     "time": "01:00:00",
-#     "partition": "test",
-# }
 
 
-# FLWR_SBATCH_ARGS = {
-#     "nodes": 1,
-#     "ntasks-per-node": 1,
-#     "cpus-per-task": NUM_CLIENTS + 1,
-#     "mem-per-cpu": "8G",
-#     "time": "01:00:00",
-#     "partition": "test",
-# }
-
-# NUM_CPUs : 1 (THIS) + 1 (CLIMATE MODEL) + NUM_CLIENTS+1 (FLWR)
+def get_ip_address():
+    try:
+        # Use a dummy connection to an external host
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # Doesn't send data
+            return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"  # fallback to localhost
 
 
-def get_redis_port():
+def get_urandom_redis_port():
+    """Generate a random Redis port using a hardware random number generator"""
+    with open("/dev/urandom", "rb") as f:
+        hrand_bytes = f.read(4)
+    hrand = struct.unpack("I", hrand_bytes)[0]
+    redis_port = random.randint(12581, 24580)
+    redis_port += hrand % 1000
+    return redis_port
+
+
+def get_ssdb_redis_port():
     """Retrieve the Redis port from the SSDB environment variable."""
     redis_port = os.getenv("SSDB")
     if not redis_port:
@@ -52,10 +56,20 @@ def get_redis_port():
 
 
 def create_and_start_model(
-    exp, name, exe_path, args, block=False, batch_settings=None
+    exp, name, exe_path, args, block=False, batch_settings=None, colocate=False
 ):
     """Create and start a model with specified settings."""
-    run_settings = exp.create_run_settings(exe=exe_path, exe_args=args)
+    run_settings = exp.create_run_settings(
+        run_command="" if colocate else "auto",
+        exe=exe_path,
+        exe_args=args,
+    )
+
+    if INFERENCE and not colocate:
+        run_settings.set_nodes(1)
+        run_settings.set_tasks_per_node(1)
+        run_settings.set_cpus_per_task(2)
+
     model = exp.create_model(
         name, run_settings=run_settings, batch_settings=batch_settings
     )
@@ -92,41 +106,26 @@ def main():
     exp_name = f"SM-FLWR_Orchestrator_{RL_ALGO}_{WANDB_GROUP}_{SEED}"
     exp_dir = f"{BASE_DIR}/SM-FLWR/{exp_name}"
     os.makedirs(exp_dir, exist_ok=True)
-    exp = Experiment(exp_name, exp_path=exp_dir, launcher="local")
+    exp = Experiment(
+        exp_name, exp_path=exp_dir, launcher="slurm" if INFERENCE else "local"
+    )
+
+    # print("[SmartSim MAIN]: ip address", get_ip_address(), flush=True)
+    # print("[SmartSim MAIN]: hostname", socket.gethostname(), flush=True)
 
     # Retrieve Redis port and start Redis database
     interfaces = list(psutil.net_if_addrs().keys())
     print("Available network interfaces:", interfaces, flush=True)
-    redis_model = exp.create_database(
-        port=get_redis_port(), interface=interfaces[1]
+
+    redis_db = exp.create_database(
+        port=get_urandom_redis_port() if INFERENCE else get_ssdb_redis_port(),
+        interface=interfaces[1],
     )
+    exp.start(redis_db)
     print(
-        f"Running Redis database on {os.getenv('SSDB')} via {interfaces[1]}",
+        f"Running Redis database on {redis_db.get_address()[0]} via {interfaces[1]}",
         flush=True,
     )
-    exp.start(redis_model)
-
-    # SBATCH_ARGS["export"] = FLWR_SBATCH_ARGS["export"] = f"SSDB={redis_port}"
-
-    # Generate batch settings
-    # batch_settings = exp.create_batch_settings(batch_args=SBATCH_ARGS)
-    # flwr_batch_settings = exp.create_batch_settings(
-    #     batch_args=FLWR_SBATCH_ARGS
-    # )
-
-    # if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
-    #     # Start SCM processes with different seeds
-    #     scm_models = []
-    #     for cid in CLIENTS:
-    #         model = create_and_start_model(
-    #             exp,
-    #             f"SCM_{cid}",
-    #             f"{ENVIRONMENT_DIR}/{SCM_EXE}",
-    #             [str(cid)],
-    #             block=False,
-    #             # batch_settings=batch_settings
-    #         )
-    #         scm_models.append(model)
 
     if ENV_ID in ["EnergyBalanceModel-v3"]:
         ebm_model = create_and_start_model(
@@ -136,29 +135,97 @@ def main():
             [
                 f"{ENVIRONMENT_DIR}/{CLIMLAB_EXE}",
                 "--num_clients",
-                f"{len(CLIENTS)}",
+                f"{NUM_CLIENTS}",
             ],
             block=False,
+            colocate=True,
         )
 
     # Start FLWR orchestrator
-    flwr_model = create_and_start_model(
-        exp,
-        "FLWR_Orchestrator",
-        PYTHON_EXE,
-        [f"{BASE_DIR}/{FLWR_EXE}", "--num_clients", f"{len(CLIENTS)}"],
-        block=False,
-    )
+    if (ENV_ID in ["EnergyBalanceModel-v2"]) or (
+        ENV_ID in ["EnergyBalanceModel-v3"] and not INFERENCE
+    ):
+        flwr_model = create_and_start_model(
+            exp,
+            "FLWR_Orchestrator",
+            PYTHON_EXE,
+            [f"{BASE_DIR}/{FLWR_EXE}", "--num_clients", f"{NUM_CLIENTS}"],
+            block=False,
+        )
 
-    # Wait for FLWR process to complete
-    wait_for_completion(exp, [flwr_model], label="FLWR")
+        # Wait for FLWR process to complete
+        wait_for_completion(exp, [flwr_model], label="FLWR")
+
+    # Start the RL algorithms in inference mode
+    elif ENV_ID in ["EnergyBalanceModel-v3"] and INFERENCE:
+        infx_models = []
+        for cid in range(NUM_CLIENTS):
+            if GLOBAL:
+                infx_model = create_and_start_model(
+                    exp,
+                    f"infxG_{RL_ALGO}_torch_{SEED}_{cid}",
+                    PYTHON_EXE,
+                    [
+                        f"{BASE_DIR}/fedrl/inference_global.py",
+                        "--env_id",
+                        f"{ENV_ID}",
+                        "--algo",
+                        f"{RL_ALGO}",
+                        "--optim_group",
+                        f"{OPTIM_GROUP}",
+                        "--wandb_group",
+                        f"{WANDB_GROUP}",
+                        "--flwr_client",
+                        f"{cid}",
+                        "--seed",
+                        f"{SEED}",
+                        "--capture_video",
+                        "--num_steps",
+                        "200",
+                        "--record_step",
+                        "20000",
+                    ],
+                    block=False,
+                )
+            else:
+                infx_model = create_and_start_model(
+                    exp,
+                    f"infx_{RL_ALGO}_torch_{SEED}_{cid}",
+                    PYTHON_EXE,
+                    [
+                        f"{BASE_DIR}/rl-algos/inference.py",
+                        "--env_id",
+                        f"{ENV_ID}",
+                        "--algo",
+                        f"{RL_ALGO}",
+                        "--optim_group",
+                        f"{OPTIM_GROUP}",
+                        "--wandb_group",
+                        f"{WANDB_GROUP}",
+                        "--flwr_client",
+                        f"{cid}",
+                        "--seed",
+                        f"{SEED}",
+                        "--capture_video",
+                        "--num_steps",
+                        "200",
+                        "--record_step",
+                        "20000",
+                    ],
+                    block=False,
+                )
+            infx_models.append(infx_model)
+
+        # Wait for RL algorithms to complete
+        wait_for_completion(
+            exp, infx_models, label=f"{RL_ALGO.upper()}_INFERENCE"
+        )
 
     # Stop all processes after completion
-    # if ENV_ID in ["SimpleClimateBiasCorrection-v0"]:
-    #     exp.stop(*scm_models)
     if ENV_ID in ["EnergyBalanceModel-v3"]:
         exp.stop(ebm_model)
-    exp.stop(redis_model)
+
+    exp.stop(redis_db)
     print("Experiment completed successfully.", flush=True)
 
 

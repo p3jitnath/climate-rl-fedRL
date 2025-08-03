@@ -72,8 +72,8 @@ BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
 # ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
-# ALGOS=("tqc")
-ALGOS=("ddpg" "td3")
+ALGOS=("tqc")
+# ALGOS=("ddpg")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 # NOW=$(date +%F_%H-%M)
@@ -85,7 +85,7 @@ echo $WANDB_GROUP
 for ALGO in "${ALGOS[@]}"; do
     for SEED in {1..10}; do
         # Submit each algorithm run as a separate Slurm job
-        sbatch slurm_smartsim.sh \
+        sbatch flwr_smartsim.sh \
             --rl_algo   "$ALGO" \
             --env_id    "$ENV_ID" \
             ${OPTIM_GROUP:+--optim_group "$OPTIM_GROUP"} \

@@ -19,7 +19,7 @@ done
 echo
 
 # Loop over top-level run directories
-for top_dir in "$BASE_DIR"/records/*ebm-v2*/; do
+for top_dir in "$BASE_DIR"/records/*ebm-*fed*/; do
     run_name=$(basename "$top_dir")
     printf "%-60s" "$run_name"
     failed_any_algo=false

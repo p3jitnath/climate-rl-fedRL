@@ -26,12 +26,12 @@ class Utils:
 
     def download_and_save_dataset(url, filepath, dataset_name):
         if not os.path.exists(filepath):
-            print(f"Downloading {dataset_name} data ...")
+            print(f"Downloading {dataset_name} data ...", flush=True)
             dataset = xr.open_dataset(url, decode_times=False)
             dataset.to_netcdf(filepath, format="NETCDF3_64BIT")
-            print(f"{dataset_name} data saved to {filepath}")
+            print(f"{dataset_name} data saved to {filepath}", flush=True)
         else:
-            print(f"Loading {dataset_name} data ...")
+            print(f"Loading {dataset_name} data ...", flush=True)
             dataset = xr.open_dataset(
                 filepath,
                 decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
@@ -59,7 +59,7 @@ class Utils:
         "NCEP upwelling shortwave radiation",
     ).sortby("lat")
 
-    # print("Loading NASA land fraction data ...")
+    # print("Loading NASA land fraction data ...", flush=True)
     # nasa_lf = xr.open_dataset(fp_lf)
 
     lat_ncep = ncep_Ts.lat

@@ -70,8 +70,8 @@ ALGOS=("ddpg" "td3")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
 NOW=$(date +%F_%H-%M)
-# NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "infxG_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^infxG_${TAG}_//")
-WANDB_GROUP="infxG_${TAG}_${NOW}"
+# NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "infx10_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^infx10_${TAG}_//")
+WANDB_GROUP="infx10_${TAG}_${NOW}"
 echo $WANDB_GROUP
 
 # 5. Loop through each algorithm and execute the script
@@ -79,12 +79,12 @@ for ALGO in "${ALGOS[@]}"; do
     for SEED in {1..10}; do
         for FLWR_CLIENT in $(seq 0 $((NUM_CLIENTS - 1))); do
             # Submit each algorithm run as a separate Slurm job
-        sbatch <<EOT
+            sbatch <<EOT
 #!/bin/bash
 
-#SBATCH --job-name=pn341_${ALGO}_${TAG}_${FLWR_CLIENT}
-#SBATCH --output=$BASE_DIR/slurm/infxG_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.out
-#SBATCH --error=$BASE_DIR/slurm/infxG_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.err
+#SBATCH --job-name=pn341_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}
+#SBATCH --output=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.out
+#SBATCH --error=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
@@ -111,7 +111,7 @@ export WANDB_MODE=offline
 export INFERENCE=1
 export NUM_CLIENTS=$NUM_CLIENTS
 
-python -u "$BASE_DIR/fedrl/inference_global.py" --env_id "$ENV_ID" --algo $ALGO --optim_group "$OPTIM_GROUP" --wandb_group "$WANDB_GROUP" --flwr_client $FLWR_CLIENT --seed $SEED --capture_video --num_steps 200 --record_step 20000
+python -u "$BASE_DIR/rl-algos/inference.py" --env_id "$ENV_ID" --algo $ALGO --optim_group "$OPTIM_GROUP" --wandb_group "$WANDB_GROUP" --flwr_client $FLWR_CLIENT --seed $SEED --capture_video --num_steps 200 --record_step 20000
 EOT
         # sleep 60
         done

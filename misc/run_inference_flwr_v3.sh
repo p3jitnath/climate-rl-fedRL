@@ -65,35 +65,34 @@ BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
 # ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
-ALGOS=("tqc")
-# ALGOS=("ddpg" "td3")
+# ALGOS=("tqc")
+ALGOS=("ddpg" "td3")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
-# NOW=$(date +%F_%H-%M)
-NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "infx10_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^infx10_${TAG}_//")
+NOW=$(date +%F_%H-%M)
+# NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "infx10_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^infx10_${TAG}_//")
 WANDB_GROUP="infx10_${TAG}_${NOW}"
 echo $WANDB_GROUP
 
 # 5. Loop through each algorithm and execute the script
 for ALGO in "${ALGOS[@]}"; do
     for SEED in {1..10}; do
-        for FLWR_CLIENT in $(seq 0 $((NUM_CLIENTS - 1))); do
-            # Submit each algorithm run as a separate Slurm job
+        # Submit each algorithm run as a separate Slurm job
         sbatch <<EOT
 #!/bin/bash
 
-#SBATCH --job-name=pn341_${ALGO}_${TAG}_${FLWR_CLIENT}
-#SBATCH --output=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.out
-#SBATCH --error=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_${FLWR_CLIENT}_%j.err
-#SBATCH --nodes=1
+#SBATCH --job-name=pn341_${ALGO}_${TAG}_${SEED}
+#SBATCH --output=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_%j.out
+#SBATCH --error=$BASE_DIR/slurm/infx10_${ALGO}_${TAG}_${SEED}_%j.err
+#SBATCH --nodes=7
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=03:00:00
-#SBATCH --account=orchid
-#SBATCH --partition=orchid
-#SBATCH --qos=orchid
-#SBATCH --gres=gpu:1
+#SBATCH --account=ai4er
+#SBATCH --partition=standard
+#SBATCH --qos=high
+#SBATCH --nodelist=host[1201-1272]
 
 ## SBATCH --account=ai4er
 ## SBATCH --partition=standard
@@ -108,12 +107,19 @@ for ALGO in "${ALGOS[@]}"; do
 conda activate venv
 cd "$BASE_DIR"
 export WANDB_MODE=offline
-export INFERENCE=1
-export NUM_CLIENTS=$NUM_CLIENTS
 
-python -u "$BASE_DIR/rl-algos/inference.py" --env_id "$ENV_ID" --algo $ALGO --optim_group "$OPTIM_GROUP" --wandb_group "$WANDB_GROUP" --flwr_client $FLWR_CLIENT --seed $SEED --capture_video --num_steps 200 --record_step 20000
+export RL_ALGO=$ALGO
+export ENV_ID=$ENV_ID
+export OPTIM_GROUP=$OPTIM_GROUP
+export WANDB_GROUP=$WANDB_GROUP
+export NUM_CLIENTS=\$(echo "\$WANDB_GROUP" | grep -oP 'a\K[0-9]+')
+export INFERENCE=1
+export GLOBAL=0
+export SEED=$SEED
+
+unset SSDB
+python -u "$BASE_DIR/run_smartsim.py"
 EOT
         # sleep 60
-        done
     done
 done

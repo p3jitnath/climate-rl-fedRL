@@ -98,7 +98,10 @@ class EnergyBalanceModelEnv(gym.Env):
         if self.REDIS_ADDRESS is None:
             raise EnvironmentError("SSDB environment variable is not set.")
         self.redis = Client(address=self.REDIS_ADDRESS, cluster=False)
-        print(f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}")
+        print(
+            f"[RL Env] Connected to Redis server: {self.REDIS_ADDRESS}",
+            flush=True,
+        )
 
         # print(f"[RL Env] sent: SIGALIVE_S{self.cid}", flush=True)
         self.redis.put_tensor(

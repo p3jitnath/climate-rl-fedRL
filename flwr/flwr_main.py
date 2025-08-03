@@ -128,7 +128,7 @@ def main():
         num_clients=num_clients,
         strategy=strategy,
         ray_init_args=ray_init_args,
-        client_resources={"num_cpus": 3, "num_gpus": 0},  # "num_gpus": 0
+        client_resources={"num_cpus": 3, "num_gpus": 1},  # "num_gpus": 0
         config=fl.server.ServerConfig(
             num_rounds=num_rounds
         ),  # steps = num_rounds * 200 * flwr_episodes

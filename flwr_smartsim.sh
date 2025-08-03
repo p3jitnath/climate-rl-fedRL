@@ -3,15 +3,15 @@
 #SBATCH --job-name=pn341_smartsim_slurm
 #SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
 #SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
-#SBATCH --nodes=7
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=3
+#SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=24:00:00
-#SBATCH --account=ai4er
-#SBATCH --partition=standard
-#SBATCH --qos=high
-#SBATCH --nodelist=host[1201-1272]
+#SBATCH --account=orchid
+#SBATCH --partition=orchid
+#SBATCH --qos=orchid
+#SBATCH --gres=gpu:2
 
 ## SBATCH --nodes=7
 ## SBATCH --ntasks-per-node=1
@@ -156,7 +156,7 @@ echo "Starting HEAD at $head_node"
 srun --nodes=1 --ntasks=1 -w "$head_node" \
     ray start --head --node-ip-address="$head_node_ip" --port=$port \
     --min-worker-port=$min_port --max-worker-port=$max_port \
-    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --num-gpus=0 --block & \
+    --num-cpus="${SLURM_CPUS_PER_TASK}" --include-dashboard=False --num-gpus=2 --block & \
     --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
     --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err" # --num-gpus=0
 
@@ -172,7 +172,7 @@ for ((i = 1; i <= worker_num; i++)); do
     srun --nodes=1 --ntasks=1 -w "$node_i" \
         ray start --address="$ip_head" \
         --min-worker-port=$min_port --max-worker-port=$max_port \
-        --num-cpus="${SLURM_CPUS_PER_TASK}" --num-gpus=0 --block & \
+        --num-cpus="${SLURM_CPUS_PER_TASK}" --num-gpus=2 --block & \
         --output="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.out" \
         --error="$LOG_DIR/ray_slurm_${SLURM_JOB_ID}.err" # --num-gpus=0
     sleep 30
