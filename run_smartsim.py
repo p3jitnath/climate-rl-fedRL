@@ -68,7 +68,8 @@ def create_and_start_model(
     if INFERENCE and not colocate:
         run_settings.set_nodes(1)
         run_settings.set_tasks_per_node(1)
-        run_settings.set_cpus_per_task(2)
+        if RL_ALGO == "tqc":
+            run_settings.set("gpus", "1")
 
     model = exp.create_model(
         name, run_settings=run_settings, batch_settings=batch_settings
@@ -121,6 +122,9 @@ def main():
         port=get_urandom_redis_port() if INFERENCE else get_ssdb_redis_port(),
         interface=interfaces[1],
     )
+    if RL_ALGO == "tqc":
+        redis_db.set_run_arg("gpus", "0")
+    # print(exp.preview(redis_db, verbosity_level="developer"), flush=True)
     exp.start(redis_db)
     print(
         f"Running Redis database on {redis_db.get_address()[0]} via {interfaces[1]}",
@@ -187,6 +191,7 @@ def main():
                     ],
                     block=False,
                 )
+                # print(exp.preview(infx_model, verbosity_level="developer"), flush=True)
             else:
                 infx_model = create_and_start_model(
                     exp,
@@ -214,6 +219,7 @@ def main():
                     ],
                     block=False,
                 )
+            # print(exp.preview(infx_model, verbosity_level="developer"), flush=True)
             infx_models.append(infx_model)
 
         # Wait for RL algorithms to complete

@@ -84,6 +84,7 @@ search_alg = OptunaSearch(seed=42)
 
 ray_kwargs = {}
 ray_kwargs["runtime_env"] = {"working_dir": BASE_DIR, "conda": "venv"}
+ray_kwargs["include_dashboard"] = False
 try:
     if os.environ["ip_head"]:
         ray_kwargs["address"] = os.environ["ip_head"]

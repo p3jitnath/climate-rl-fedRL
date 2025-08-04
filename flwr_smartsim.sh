@@ -3,19 +3,19 @@
 #SBATCH --job-name=pn341_smartsim_slurm
 #SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
 #SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
-#SBATCH --nodes=4
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=24:00:00
 #SBATCH --account=orchid
 #SBATCH --partition=orchid
 #SBATCH --qos=orchid
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:4
 
-## SBATCH --nodes=7
+## SBATCH --nodes=8
 ## SBATCH --ntasks-per-node=1
-## SBATCH --cpus-per-task=3
+## SBATCH --cpus-per-task=4
 ## SBATCH --mem-per-cpu=8G
 ## SBATCH --time=24:00:00
 ## SBATCH --account=ai4er
@@ -23,15 +23,15 @@
 ## SBATCH --qos=high
 ## SBATCH --nodelist=host[1201-1272]
 
-## SBATCH --nodes=4
-## SBATCH --ntasks-per-node=1
-## SBATCH --cpus-per-task=8
+## SBATCH --nodes=2
+## SBATCH --ntasks-per-node=4
+## SBATCH --cpus-per-task=4
 ## SBATCH --mem-per-cpu=8G
 ## SBATCH --time=24:00:00
 ## SBATCH --account=orchid
 ## SBATCH --partition=orchid
 ## SBATCH --qos=orchid
-## SBATCH --gres=gpu:2
+## SBATCH --gres=gpu:4
 
 ## IMPORTANT NOTE: CHECK NODES TO BE NUM_CLIENTS + 1
 

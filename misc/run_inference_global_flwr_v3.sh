@@ -65,12 +65,12 @@ BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 # 3. List of algorithms
 # ALGOS=("ddpg" "dpg" "td3" "reinforce" "trpo" "ppo" "sac" "avg")
-# ALGOS=("tqc")
-ALGOS=("ddpg" "td3")
+# ALGOS=("ddpg" "td3")
+ALGOS=("tqc")
 
 # 4. Get the current date and time in YYYY-MM-DD_HH-MM format
-NOW=$(date +%F_%H-%M)
-# NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "infxG_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^infxG_${TAG}_//")
+# NOW=$(date +%F_%H-%M)
+NOW=$(basename $(find ${BASE_DIR}/runs/ -maxdepth 1 -type d -name "infxG_${TAG}_*" | grep -E "${TAG}_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$" | sort -r | head -n 1) | sed -E "s/^infxG_${TAG}_//")
 WANDB_GROUP="infxG_${TAG}_${NOW}"
 echo $WANDB_GROUP
 
@@ -84,25 +84,36 @@ for ALGO in "${ALGOS[@]}"; do
 #SBATCH --job-name=pn341_${ALGO}_${TAG}_${SEED}
 #SBATCH --output=$BASE_DIR/slurm/infxG_${ALGO}_${TAG}_${SEED}_%j.out
 #SBATCH --error=$BASE_DIR/slurm/infxG_${ALGO}_${TAG}_${SEED}_%j.err
-#SBATCH --nodes=7
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=2
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=8G
 #SBATCH --time=03:00:00
-#SBATCH --account=ai4er
-#SBATCH --partition=standard
-#SBATCH --qos=high
-#SBATCH --nodelist=host[1201-1272]
+#SBATCH --account=orchid
+#SBATCH --partition=orchid
+#SBATCH --qos=orchid
+#SBATCH --gres=gpu:4
+#SBATCH --exclude=gpuhost[005,015-016]
 
+## SBATCH --nodes=8
+## SBATCH --ntasks-per-node=1
+## SBATCH --cpus-per-task=2
+## SBATCH --mem-per-cpu=8G
+## SBATCH --time=03:00:00
 ## SBATCH --account=ai4er
 ## SBATCH --partition=standard
 ## SBATCH --qos=high
 ## SBATCH --nodelist=host[1201-1272]
 
+## SBATCH --nodes=2
+## SBATCH --ntasks-per-node=4
+## SBATCH --cpus-per-task=4
+## SBATCH --mem-per-cpu=8G
+## SBATCH --time=03:00:00
 ## SBATCH --account=orchid
 ## SBATCH --partition=orchid
 ## SBATCH --qos=orchid
-## SBATCH --gres=gpu:1
+## SBATCH --gres=gpu:4
 
 conda activate venv
 cd "$BASE_DIR"
