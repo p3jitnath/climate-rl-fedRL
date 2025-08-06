@@ -3,6 +3,7 @@ import random
 import socket
 import struct
 import time
+from distutils.util import strtobool
 
 import psutil
 from smartsim import Experiment
@@ -23,6 +24,10 @@ OPTIM_GROUP = os.getenv("OPTIM_GROUP")
 SEED = os.getenv("SEED")
 INFERENCE = bool(int(os.environ.get("INFERENCE", 0)))
 GLOBAL = bool(int(os.environ.get("GLOBAL", 0)))
+
+OPTIMISE = bool(strtobool(os.getenv("OPTIMISE")))
+EXP_ID = os.getenv("TAG")
+OPT_TRIAL_IDX = int(os.getenv("OPT_TRIAL_IDX"))
 
 NUM_CLIENTS = int(os.getenv("NUM_CLIENTS"))
 
@@ -104,7 +109,12 @@ def wait_for_completion(exp, models, label=""):
 
 def main():
     # Initialise SmartSim Experiment
-    exp_name = f"SM-FLWR_Orchestrator_{RL_ALGO}_{WANDB_GROUP}_{SEED}"
+    if OPTIMISE:
+        exp_name = (
+            f"SM-FLWR_Orchestrator_{RL_ALGO}_optuna_{EXP_ID}_{OPT_TRIAL_IDX}"
+        )
+    else:
+        exp_name = f"SM-FLWR_Orchestrator_{RL_ALGO}_{WANDB_GROUP}_{SEED}"
     exp_dir = f"{BASE_DIR}/SM-FLWR/{exp_name}"
     os.makedirs(exp_dir, exist_ok=True)
     exp = Experiment(
@@ -171,23 +181,15 @@ def main():
                     PYTHON_EXE,
                     [
                         f"{BASE_DIR}/fedrl/inference_global.py",
-                        "--env_id",
-                        f"{ENV_ID}",
-                        "--algo",
-                        f"{RL_ALGO}",
-                        "--optim_group",
-                        f"{OPTIM_GROUP}",
-                        "--wandb_group",
-                        f"{WANDB_GROUP}",
-                        "--flwr_client",
-                        f"{cid}",
-                        "--seed",
-                        f"{SEED}",
+                        f"--env_id {ENV_ID}",
+                        f"--algo {RL_ALGO}",
+                        f"--optim_group {OPTIM_GROUP}",
+                        f"--wandb_group {WANDB_GROUP}",
+                        f"--flwr_client {cid}",
+                        f"--seed {SEED}",
                         "--capture_video",
-                        "--num_steps",
-                        "200",
-                        "--record_step",
-                        "20000",
+                        "--num_steps 200",
+                        "--record_step 20000",
                     ],
                     block=False,
                 )
@@ -199,23 +201,15 @@ def main():
                     PYTHON_EXE,
                     [
                         f"{BASE_DIR}/rl-algos/inference.py",
-                        "--env_id",
-                        f"{ENV_ID}",
-                        "--algo",
-                        f"{RL_ALGO}",
-                        "--optim_group",
-                        f"{OPTIM_GROUP}",
-                        "--wandb_group",
-                        f"{WANDB_GROUP}",
-                        "--flwr_client",
-                        f"{cid}",
-                        "--seed",
-                        f"{SEED}",
+                        f"--env_id {ENV_ID}",
+                        f"--algo {RL_ALGO}",
+                        f"--optim_group {OPTIM_GROUP}",
+                        f"--wandb_group {WANDB_GROUP}",
+                        f"--flwr_client {cid}",
+                        f"--seed {SEED}",
                         "--capture_video",
-                        "--num_steps",
-                        "200",
-                        "--record_step",
-                        "20000",
+                        "--num_steps 200",
+                        "--record_step 20000",
                     ],
                     block=False,
                 )

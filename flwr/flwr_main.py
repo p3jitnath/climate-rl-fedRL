@@ -2,6 +2,7 @@ import argparse
 import math
 import os
 import pickle
+from distutils.util import strtobool
 
 import numpy as np
 import smartredis
@@ -14,6 +15,11 @@ EPISODE_LENGTH = 200
 TOTAL_TIMESTEPS = 20000
 FLWR_EPISODES = int(os.getenv("FLWR_EPISODES"))
 MAX_EPISODES = TOTAL_TIMESTEPS // EPISODE_LENGTH
+
+OPTIMISE = bool(strtobool(os.getenv("OPTIMISE")))
+if OPTIMISE:
+    OPT_TIMESTEPS = int(os.getenv("OPT_TIMESTEPS"))
+    TOTAL_TIMESTEPS = OPT_TIMESTEPS
 
 
 class FedAvgWithBuffer(fl.server.strategy.FedAvg):
@@ -128,7 +134,7 @@ def main():
         num_clients=num_clients,
         strategy=strategy,
         ray_init_args=ray_init_args,
-        client_resources={"num_cpus": 3, "num_gpus": 1},  # "num_gpus": 0
+        client_resources={"num_cpus": 3, "num_gpus": 0},  # "num_gpus": 0
         config=fl.server.ServerConfig(
             num_rounds=num_rounds
         ),  # steps = num_rounds * 200 * flwr_episodes

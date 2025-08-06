@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import sys
@@ -19,6 +20,13 @@ FLWR_AGENT = (
 FLWR_EPISODES = int(os.getenv("FLWR_EPISODES"))
 SEED = int(os.getenv("SEED"))
 
+OPTIMISE = bool(strtobool(os.getenv("OPTIMISE")))
+OPT_TRIAL_IDX = int(os.getenv("OPT_TRIAL_IDX"))
+EXP_ID = os.getenv("TAG")
+
+if OPTIMISE:
+    OPTIM_GROUP = None
+
 CRITIC_ALGOS = [
     ("avg", 1),
     ("dpg", 1),
@@ -28,6 +36,7 @@ CRITIC_ALGOS = [
     ("td3", 2),
     ("tqc", 1),
 ]
+
 PYTHON_EXE = "/home/users/p341cam/miniconda3/envs/venv/bin/python"
 
 if OPTIM_GROUP and RL_ALGO == "tqc":
@@ -100,45 +109,60 @@ class FlowerClient(fl.client.NumPyClient):
             flush=True,
         )
 
-        if OPTIM_GROUP:
-            with open(
-                f"{BASE_DIR}/param_tune/results/{OPTIM_GROUP}/best_results.json",
-                "r",
-            ) as file:
-                opt_params = {
-                    k: v
-                    for k, v in json.load(file)[RL_ALGO].items()
-                    if k not in {"algo", "episodic_return", "date"}
-                }
-                if "64L" in OPTIM_GROUP:
-                    actor_critic_layer_size = 64
-                else:
-                    for key, value in opt_params.items():
-                        if key == "actor_critic_layer_size":
-                            actor_critic_layer_size = value
-                            break
+        if OPTIMISE:
+            config_fn = glob.glob(
+                f"{BASE_DIR}/param_tune/tmp/fedRL_{EXP_ID}_{RL_ALGO}_{self.cid}_*_T{OPT_TRIAL_IDX}.json"
+            )[0]
+            with open(config_fn, "r") as file:
+                config = json.load(file)
+
+            cmd = f"{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py --optimise --flwr_client {self.cid} --flwr_episodes {self.flwr_episodes} "
+            for param in config:
+                if param == "actor_layer_size":
+                    self.actor_layer_size = config[param]
+                if param == "critic_layer_size":
+                    self.critic_layer_size = config[param]
+                cmd += f"--{param} {config[param]} "
         else:
-            actor_critic_layer_size = 256
+            if OPTIM_GROUP:
+                with open(
+                    f"{BASE_DIR}/param_tune/results/{OPTIM_GROUP}/best_results.json",
+                    "r",
+                ) as file:
+                    opt_params = {
+                        k: v
+                        for k, v in json.load(file)[RL_ALGO].items()
+                        if k not in {"algo", "episodic_return", "date"}
+                    }
+                    if "64L" in OPTIM_GROUP:
+                        actor_critic_layer_size = 64
+                    else:
+                        for key, value in opt_params.items():
+                            if key == "actor_critic_layer_size":
+                                actor_critic_layer_size = value
+                                break
+            else:
+                actor_critic_layer_size = 256
 
-        self.actor_layer_size = self.critic_layer_size = (
-            actor_critic_layer_size
-        )
+            self.actor_layer_size = self.critic_layer_size = (
+                actor_critic_layer_size
+            )
 
-        cmd = (
-            f"{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py "
-            f"--env_id {ENV_ID} "
-            f"--wandb_group {WANDB_GROUP} "
-            f"--num_steps {EPISODE_LENGTH} "
-            f"--flwr_client {self.cid} "
-            f"--flwr_episodes {self.flwr_episodes} "
-            f"--seed {self.seed} "
-            f"--actor_layer_size {self.actor_layer_size} "
-            f"--critic_layer_size {self.critic_layer_size} "
-            f"--capture_video_freq 10 "  # --no-capture_video
-        )
+            cmd = (
+                f"{PYTHON_EXE} -u {BASE_DIR}/rl-algos/{RL_ALGO}/main.py "
+                f"--env_id {ENV_ID} "
+                f"--wandb_group {WANDB_GROUP} "
+                f"--num_steps {EPISODE_LENGTH} "
+                f"--flwr_client {self.cid} "
+                f"--flwr_episodes {self.flwr_episodes} "
+                f"--seed {self.seed} "
+                f"--actor_layer_size {self.actor_layer_size} "
+                f"--critic_layer_size {self.critic_layer_size} "
+                f"--capture_video_freq 10 "  # --no-capture_video
+            )
 
-        if OPTIM_GROUP:
-            cmd += f"--optim_group {OPTIM_GROUP}" + " "
+            if OPTIM_GROUP:
+                cmd += f"--optim_group {OPTIM_GROUP}" + " "
 
         for name, enabled in (
             ("flwr_actor", FLWR_ACTOR),
@@ -149,7 +173,7 @@ class FlowerClient(fl.client.NumPyClient):
                 continue
             if RL_ALGO == "ppo":
                 name = "flwr_agent"
-            cmd += f"--{prefix}{name}" + " "
+            cmd += f"--{prefix}{name} "
 
         is_alive = self.redis.tensor_exists(f"SIGALIVE_S{self.cid}")
         print("is_alive:", is_alive, flush=True)

@@ -1,23 +1,23 @@
 #!/bin/sh
 
 #SBATCH --job-name=pn341_smartsim_slurm
-#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
-#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=4
-#SBATCH --cpus-per-task=4
+#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_flwr_slurm_%j.out
+#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_flwr_slurm_%j.err
+#SBATCH --nodes=7
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=3
 #SBATCH --mem-per-cpu=8G
-#SBATCH --time=24:00:00
-#SBATCH --account=orchid
-#SBATCH --partition=orchid
-#SBATCH --qos=orchid
-#SBATCH --gres=gpu:4
+#SBATCH --time=01:00:00
+#SBATCH --account=ai4er
+#SBATCH --partition=standard
+#SBATCH --qos=high
+#SBATCH --nodelist=host[1201-1272]
 
-## SBATCH --nodes=8
+## SBATCH --nodes=7
 ## SBATCH --ntasks-per-node=1
-## SBATCH --cpus-per-task=4
+## SBATCH --cpus-per-task=3
 ## SBATCH --mem-per-cpu=8G
-## SBATCH --time=24:00:00
+## SBATCH --time=01:00:00
 ## SBATCH --account=ai4er
 ## SBATCH --partition=standard
 ## SBATCH --qos=high
@@ -25,9 +25,9 @@
 
 ## SBATCH --nodes=2
 ## SBATCH --ntasks-per-node=4
-## SBATCH --cpus-per-task=4
+## SBATCH --cpus-per-task=3
 ## SBATCH --mem-per-cpu=8G
-## SBATCH --time=24:00:00
+## SBATCH --time=01:00:00
 ## SBATCH --account=orchid
 ## SBATCH --partition=orchid
 ## SBATCH --qos=orchid
@@ -44,6 +44,11 @@ set -x
 
 # checking the conda environment
 echo "PYTHON: $(which python)"
+
+# setting default values
+export OPTIMISE=false
+export FLWR_ACTOR=true
+export FLWR_CRITICS=false
 
 # parse command-line arguments
 while [ $# -gt 0 ]; do
@@ -88,6 +93,18 @@ while [ $# -gt 0 ]; do
       export SEED="$2"
       shift 2
       ;;
+    --optimise)
+      export OPTIMISE="$2"
+      shift 2
+      ;;
+    --opt_timesteps)
+      export OPT_TIMESTEPS="$2"
+      shift 2
+      ;;
+    --opt_trial_idx)
+      export OPT_TRIAL_IDX="$2"
+      shift 2
+      ;;
     --) # explicit end of args
       shift
       break
@@ -109,6 +126,9 @@ echo "FLWR_EPISODES: $FLWR_EPISODES"
 echo "OPTIM_GROUP: $OPTIM_GROUP"
 echo "NUM_CLIENTS: $NUM_CLIENTS"
 echo "SEED: $SEED"
+echo "OPTIMISE: $OPTIMISE"
+echo "OPT_TIMESTEPS: $OPT_TIMESTEPS"
+echo "OPT_TRIAL_IDX: $OPT_TRIAL_IDX"
 
 # getting the node names
 nodes=$(scontrol show hostnames "$SLURM_JOB_NODELIST")

@@ -112,7 +112,8 @@ class Args:
         if self.optimise:
             self.track = False
             self.capture_video = False
-            self.total_timesteps = self.opt_timesteps
+            if self.flwr_client is None:
+                self.total_timesteps = self.opt_timesteps
 
         if self.optim_group:
             algo = self.exp_name.split("_")[0]
@@ -507,7 +508,9 @@ for global_step in range(1, args.total_timesteps + 1):
 
                 break
 
-    if global_step == args.total_timesteps:
+    if global_step == args.total_timesteps or (
+        (args.flwr_client is not None) and global_step == args.opt_timesteps
+    ):
         if args.write_to_file:
             episodic_return = info["episode"]["r"][0]
             with open(args.write_to_file, "wb") as file:

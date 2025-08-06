@@ -7,5 +7,9 @@ runs=("$BASE_DIR"/param_tune/results/*v*)
 for run in "${runs[@]}"; do
     exp_id=$(basename "$run")
     echo "Reading $run ..."
-    python $BASE_DIR/param_tune/results/read.py --exp_id $exp_id
+    if [[ "$run" == *fedRL* ]]; then
+        python $BASE_DIR/param_tune/results/read_flwr.py --exp_id $exp_id
+    else
+        python $BASE_DIR/param_tune/results/read.py --exp_id $exp_id
+    fi
 done
