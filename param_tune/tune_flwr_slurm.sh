@@ -47,6 +47,10 @@ while [[ "$#" -gt 0 ]]; do
             OPT_TIMESTEPS="$2"
             shift 2
             ;;
+        --flwr_episodes)
+            FLWR_EPISODES="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown parameter passed: $1"
             usage
@@ -59,9 +63,10 @@ echo "algo: $ALGO"
 echo "exp_id: $EXP_ID"
 echo "env_id: $ENV_ID"
 echo "opt_timesteps: $OPT_TIMESTEPS"
+echo "flwr_episodes: $FLWR_EPISODES"
 
 # 1e. Check if all flags are set
-if [ -z "$ALGO" ] || [ -z "$EXP_ID" ] || [ -z "$ENV_ID" ] || [ -z "$OPT_TIMESTEPS" ] ; then
+if [ -z "$ALGO" ] || [ -z "$EXP_ID" ] || [ -z "$ENV_ID" ] || [ -z "$OPT_TIMESTEPS" ] || [ -z "$FLWR_EPISODES" ]; then
     echo "Error: All flags are required."
     usage
 fi
@@ -73,4 +78,5 @@ python -u $BASE_DIR/param_tune/tune_flwr.py \
         --algo $ALGO \
         --exp_id $EXP_ID \
         --env_id $ENV_ID \
-        --opt_timesteps $OPT_TIMESTEPS
+        --opt_timesteps $OPT_TIMESTEPS \
+        --flwr_episodes $FLWR_EPISODES

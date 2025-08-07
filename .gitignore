@@ -175,6 +175,7 @@ cython_debug/
 *.zip
 *.gif
 *.png
+*.pdf
 *.tmp
 
 runs/
@@ -189,6 +190,7 @@ records/
 *_run_*
 *test*
 *072025
+*082025
 
 tmp/
 *.rdb

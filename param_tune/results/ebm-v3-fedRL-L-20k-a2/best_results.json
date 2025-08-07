@@ -1,0 +1,60 @@
+{
+    "ddpg": {
+        "0": {
+            "learning_rate": 0.0007113010079376346,
+            "tau": 0.04697307989958119,
+            "batch_size": 128,
+            "exploration_noise": 0.2783483546019072,
+            "policy_frequency": 3,
+            "noise_clip": 0.5,
+            "actor_critic_layer_size": 256,
+            "algo": "ddpg",
+            "cid": 0,
+            "date": "2025-08-07",
+            "episodic_return": -24556.361328125
+        },
+        "1": {
+            "learning_rate": 0.001034904079558049,
+            "tau": 0.029545775839906096,
+            "batch_size": 128,
+            "exploration_noise": 0.1882471896544634,
+            "policy_frequency": 9,
+            "noise_clip": 1.0,
+            "actor_critic_layer_size": 256,
+            "algo": "ddpg",
+            "cid": 1,
+            "date": "2025-08-07",
+            "episodic_return": -11988.75390625
+        }
+    },
+    "td3": {
+        "0": {
+            "learning_rate": 0.0020952682877593398,
+            "tau": 0.005670545196119687,
+            "batch_size": 128,
+            "policy_noise": 0.2107711718994318,
+            "exploration_noise": 0.28714559743652823,
+            "policy_frequency": 6,
+            "noise_clip": 0.9,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 0,
+            "date": "2025-08-07",
+            "episodic_return": -29013.3359375
+        },
+        "1": {
+            "learning_rate": 0.001432937418795949,
+            "tau": 0.0011964100004606699,
+            "batch_size": 64,
+            "policy_noise": 0.19745284841199817,
+            "exploration_noise": 0.1613518597858636,
+            "policy_frequency": 9,
+            "noise_clip": 0.30000000000000004,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 1,
+            "date": "2025-08-07",
+            "episodic_return": -14772.1962890625
+        }
+    }
+}

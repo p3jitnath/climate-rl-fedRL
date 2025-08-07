@@ -42,19 +42,20 @@ args = tyro.cli(Args)
 args.num_clients = int(re.search(r"a(\d+)", args.exp_id).group(1))
 
 if args.actor_layer_size is None or args.critic_layer_size is None:
-    with open(
-        f"{BASE_DIR}/param_tune/results/ebm-v1-optim-L-20k/best_results.json",
-        "r",
-    ) as file:
-        opt_params = {
-            k: v
-            for k, v in json.load(file)[args.algo].items()
-            if k not in {"algo", "episodic_return", "date"}
-        }
-        for key, value in opt_params.items():
-            if key == "actor_critic_layer_size":
-                args.actor_layer_size = value
-                args.critic_layer_size = value
+    # with open(
+    #     f"{BASE_DIR}/param_tune/results/ebm-v1-optim-L-20k/best_results.json",
+    #     "r",
+    # ) as file:
+    #     opt_params = {
+    #         k: v
+    #         for k, v in json.load(file)[args.algo].items()
+    #         if k not in {"algo", "episodic_return", "date"}
+    #     }
+    #     for key, value in opt_params.items():
+    #         if key == "actor_critic_layer_size":
+    #             args.actor_layer_size = value
+    #             args.critic_layer_size = value
+    args.actor_layer_size = args.critic_layer_size = 256
 
 processes = []
 for cid in range(args.num_clients):

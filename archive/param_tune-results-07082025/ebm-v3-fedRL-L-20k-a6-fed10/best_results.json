@@ -1,0 +1,88 @@
+{
+    "td3": {
+        "0": {
+            "learning_rate": 0.008050362596799471,
+            "tau": 0.0041728712311077075,
+            "batch_size": 64,
+            "policy_noise": 0.1466895905924034,
+            "exploration_noise": 0.22015894065320987,
+            "policy_frequency": 10,
+            "noise_clip": 0.2,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 0,
+            "date": "2025-08-07",
+            "episodic_return": -73204.8515625
+        },
+        "1": {
+            "learning_rate": 0.0033289204213768136,
+            "tau": 0.0831990881913171,
+            "batch_size": 64,
+            "policy_noise": 0.1597045680060557,
+            "exploration_noise": 0.1251385109067414,
+            "policy_frequency": 9,
+            "noise_clip": 0.9,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 1,
+            "date": "2025-08-07",
+            "episodic_return": -31854.623046875
+        },
+        "2": {
+            "learning_rate": 0.008648789550330493,
+            "tau": 0.0957576394914958,
+            "batch_size": 64,
+            "policy_noise": 0.10978621037635296,
+            "exploration_noise": 0.15329003730990257,
+            "policy_frequency": 1,
+            "noise_clip": 0.2,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 2,
+            "date": "2025-08-07",
+            "episodic_return": -70133.984375
+        },
+        "3": {
+            "learning_rate": 0.00722503992179468,
+            "tau": 0.0014365104090944651,
+            "batch_size": 128,
+            "policy_noise": 0.17904089053075922,
+            "exploration_noise": 0.116637435348086,
+            "policy_frequency": 7,
+            "noise_clip": 0.5,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 3,
+            "date": "2025-08-07",
+            "episodic_return": -71178.6875
+        },
+        "4": {
+            "learning_rate": 0.003648810712588299,
+            "tau": 0.012471036892987841,
+            "batch_size": 64,
+            "policy_noise": 0.16617960497052983,
+            "exploration_noise": 0.11271167005720473,
+            "policy_frequency": 5,
+            "noise_clip": 0.1,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 4,
+            "date": "2025-08-07",
+            "episodic_return": -27496.322265625
+        },
+        "5": {
+            "learning_rate": 0.0004807075346588977,
+            "tau": 0.009045245790395545,
+            "batch_size": 64,
+            "policy_noise": 0.23372827561114726,
+            "exploration_noise": 0.11223188624533471,
+            "policy_frequency": 6,
+            "noise_clip": 1.0,
+            "actor_critic_layer_size": 256,
+            "algo": "td3",
+            "cid": 5,
+            "date": "2025-08-07",
+            "episodic_return": -27606.765625
+        }
+    }
+}

@@ -9,8 +9,9 @@ import time
 BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
 
 sbatch_cmds = [
-    # f'sbatch {BASE_DIR}/param_tune/tune_flwr_slurm.sh --algo td3 --exp_id "ebm-v3-fedRL-L-20k-a6-fed05" --env_id "EnergyBalanceModel-v3" --opt_timesteps 20000',
-    # f'sbatch {BASE_DIR}/param_tune/tune_flwr_slurm.sh --algo ddpg --exp_id "ebm-v3-fedRL-L-20k-a6-fed05" --env_id "EnergyBalanceModel-v3" --opt_timesteps 20000',
+    # f'sbatch {BASE_DIR}/param_tune/tune_flwr_slurm.sh --algo ddpg --exp_id "ebm-v3-fedRL-L-20k-a2-fed05" --env_id "EnergyBalanceModel-v3" --opt_timesteps 20000 --flwr_episodes 5',
+    # f'sbatch {BASE_DIR}/param_tune/tune_flwr_slurm.sh --algo td3 --exp_id "ebm-v3-fedRL-L-20k-a2-fed05" --env_id "EnergyBalanceModel-v3" --opt_timesteps 20000 --flwr_episodes 5',
+    # f'sbatch {BASE_DIR}/param_tune/tune_flwr_slurm.sh --algo tqc --exp_id "ebm-v3-fedRL-L-20k-a2-fed05" --env_id "EnergyBalanceModel-v3" --opt_timesteps 20000 --flwr_episodes 5',
 ]
 
 
@@ -37,7 +38,7 @@ def submit_and_wait(cmd):
         if job_id not in check.stdout:
             print(f"Job {job_id} finished.", flush=True)
             break
-        time.sleep(30)
+        time.sleep(120)
 
 
 for cmd in sbatch_cmds:
