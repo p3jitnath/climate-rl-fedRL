@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Nath"
+  given-names: "Pritthijit"
+  orcid: "https://orcid.org/0009-0002-1648-4444"
+- family-names: "Schemm"
+  given-names: "Sebastian"
+  orcid: "https://orcid.org/0000-0002-1601-5683"
+- family-names: "Moss"
+  given-names: "Henry"
+  orcid: "https://orcid.org/0000-0003-0427-7675"
+- family-names: "Haynes"
+  given-names: "Peter"
+  orcid: "https://orcid.org/0000-0002-7726-6988"
+- family-names: "Shuckburgh"
+  given-names: "Emily"
+  orcid: "https://orcid.org/0000-0001-9206-3444"
+- family-names: "Webb"
+  given-names: "Mark"
+  orcid: "https://orcid.org/0000-0002-7709-7088"
+title: "FedRAIN-Lite: Federated Reinforcement Algorithms for Improving Idealised Numerical Weather and Climate Models"
+version: 1.0.0
+doi: 10.48550/arXiv.2508.14315
+date-released: 2025-08-19
+url: "https://github.com/p3jitnath/climate-rl-fedrl"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Nath"
+    given-names: "Pritthijit"
+    orcid: "https://orcid.org/0009-0002-1648-4444"
+  - family-names: "Schemm"
+    given-names: "Sebastian"
+    orcid: "https://orcid.org/0000-0002-1601-5683"
+  - family-names: "Moss"
+    given-names: "Henry"
+    orcid: "https://orcid.org/0000-0003-0427-7675"
+  - family-names: "Haynes"
+    given-names: "Peter"
+    orcid: "https://orcid.org/0000-0002-7726-6988"
+  - family-names: "Shuckburgh"
+    given-names: "Emily"
+    orcid: "https://orcid.org/0000-0001-9206-3444"
+  - family-names: "Webb"
+    given-names: "Mark"
+    orcid: "https://orcid.org/0000-0002-7709-7088"
+  doi: "10.48550/arXiv.2508.14315"
+  title: "FedRAIN-Lite: Federated Reinforcement Algorithms for Improving Idealised Numerical Weather and Climate Models"
+  journal: "arXiv preprint arXiv:2508.14315"
+  month: 8
+  year: 2025

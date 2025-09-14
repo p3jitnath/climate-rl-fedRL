@@ -1,5 +1,3 @@
-# climate-rl-fedRL
-
 <table>
   <tr align="center">
     <!-- UKRI Logo -->
@@ -101,7 +99,7 @@ python ./rl-algos/ddpg/main.py --env_id "EnergyBalanceModel-v1" --total_timestep
 python ./rl-algos/ddpg/main.py -h
 ```
 > [!NOTE]
-> Command line examples to run RL algorithms (w/FedRL) using SLURM can be found in `run` files [here](/misc/).
+> Command line examples to run RL algorithms (w/ FedRL) using SLURM can be found in `run` files [here](/misc/).
 
 ## License
 
