@@ -68,4 +68,4 @@ export SEED=1
 
 # 1. Run smartsim
 # cd fedrl-climate-envs && pip install . && cd ..
-python run_smartsim.py
+python $BASE_DIR/smartsim/run_smartsim.py

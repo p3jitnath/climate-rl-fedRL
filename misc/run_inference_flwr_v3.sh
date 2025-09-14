@@ -129,7 +129,7 @@ export GLOBAL=0
 export SEED=$SEED
 
 unset SSDB
-python -u "$BASE_DIR/run_smartsim.py"
+python -u "$BASE_DIR/smartsim/run_smartsim.py"
 EOT
         # sleep 60
     done

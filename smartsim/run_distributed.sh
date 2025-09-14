@@ -85,7 +85,7 @@ echo $WANDB_GROUP
 for ALGO in "${ALGOS[@]}"; do
     for SEED in {1..10}; do
         # Submit each algorithm run as a separate Slurm job
-        sbatch flwr_smartsim.sh \
+        sbatch $BASE_DIR/smartsim/flwr_smartsim.sh \
             --rl_algo   "$ALGO" \
             --env_id    "$ENV_ID" \
             ${OPTIM_GROUP:+--optim_group "$OPTIM_GROUP"} \

@@ -198,4 +198,4 @@ for ((i = 1; i <= worker_num; i++)); do
     sleep 30
 done
 
-python -u $BASE_DIR/run_smartsim.py
+python -u $BASE_DIR/smartsim/run_smartsim.py

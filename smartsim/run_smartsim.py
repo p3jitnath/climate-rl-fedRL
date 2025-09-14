@@ -6,6 +6,7 @@ import time
 from distutils.util import strtobool
 
 import psutil
+
 from smartsim import Experiment
 from smartsim.status import SmartSimStatus
 
