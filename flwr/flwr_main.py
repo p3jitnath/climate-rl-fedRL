@@ -121,6 +121,7 @@ def main():
         ray_init_args = {
             "num_cpus": total_cpus,
             "num_gpus": total_gpus,
+            "include_dashboard": False,
         }
 
     # Start the simulation

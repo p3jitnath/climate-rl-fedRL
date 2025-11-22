@@ -229,6 +229,7 @@ def plot_ebmTs(
         return [change1] + [change2] + list(change3) + list(change4)
 
     if movie:
+        # FIXME: DOES NOT COVER ALL FRAMES IN THE VIDEO
         anim = FuncAnimation(
             fig, update, frames=len(ebm_Ts), interval=1000 / 30, blit=True
         )
