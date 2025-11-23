@@ -137,9 +137,9 @@ class EnergyBalanceModelEnv(gym.Env):
         self.a2 = np.clip(self.a2, self.min_a2, self.max_a2)
 
         # Send the parameters to Redis
-        # print(f"[RL Env] sent: py2f_redis_s{self.cid}", flush=True)
+        # print(f"[RL Env] sent: PY2F_REDIS_S{self.cid}", flush=True)
         self.redis.put_tensor(
-            f"py2f_redis_s{self.cid}",
+            f"PY2F_REDIS_S{self.cid}",
             np.array(
                 [self.D, *(self.A * 1e2), *(self.B), self.a0, self.a2],
                 dtype=np.float32,
@@ -153,14 +153,14 @@ class EnergyBalanceModelEnv(gym.Env):
         # Wait for the climlab model to compute the new ebm temperatures and send
         self.ebm_Ts = None
         while self.ebm_Ts is None:
-            if self.redis.tensor_exists(f"f2py_redis_s{self.cid}"):
-                # print(f"[RL Env] received: f2py_redis_s{self.cid}", flush=True)
+            if self.redis.tensor_exists(f"F2PY_REDIS_S{self.cid}"):
+                # print(f"[RL Env] received: F2PY_REDIS_S{self.cid}", flush=True)
                 self.ebm_Ts, self.climlab_ebm_Ts = self.redis.get_tensor(
-                    f"f2py_redis_s{self.cid}"
+                    f"F2PY_REDIS_S{self.cid}"
                 )
                 time.sleep(self.wait_time)
-                # print(f"[RL Env] deleted: f2py_redis_s{self.cid}", flush=True)
-                self.redis.delete_tensor(f"f2py_redis_s{self.cid}")
+                # print(f"[RL Env] deleted: F2PY_REDIS_S{self.cid}", flush=True)
+                self.redis.delete_tensor(f"F2PY_REDIS_S{self.cid}")
             else:
                 continue
 
@@ -196,17 +196,17 @@ class EnergyBalanceModelEnv(gym.Env):
         # Wait for the climlab model to compute the new temperature and send
         self.ebm_Ts = None
         while self.ebm_Ts is None:
-            if self.redis.tensor_exists(f"f2py_redis_s{self.cid}"):
-                # print(f"[RL Env] received: f2py_redis_s{self.cid}", flush=True)
+            if self.redis.tensor_exists(f"F2PY_REDIS_S{self.cid}"):
+                # print(f"[RL Env] received: F2PY_REDIS_S{self.cid}", flush=True)
                 (
                     self.ebm_Ts,
                     self.climlab_ebm_Ts,
                     self.Ts_ncep_annual,
                     self.ebm_lat,
-                ) = self.redis.get_tensor(f"f2py_redis_s{self.cid}")
+                ) = self.redis.get_tensor(f"F2PY_REDIS_S{self.cid}")
                 time.sleep(self.wait_time)
-                # print(f"[RL Env] deleted: f2py_redis_s{self.cid}", flush=True)
-                self.redis.delete_tensor(f"f2py_redis_s{self.cid}")
+                # print(f"[RL Env] deleted: F2PY_REDIS_S{self.cid}", flush=True)
+                self.redis.delete_tensor(f"F2PY_REDIS_S{self.cid}")
             else:
                 continue  # Wait for the computation to complete
 

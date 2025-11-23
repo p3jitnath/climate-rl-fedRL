@@ -126,9 +126,9 @@ while True:
                 # print(f"[climlab EBM] deleted: SIGSTART_S{cid}", flush=True)
                 utils.redis.delete_tensor(f"SIGSTART_S{cid}")
                 time.sleep(WAIT_TIME)
-                # print(f"[climlab EBM] sent: f2py_redis_s{cid}", flush=True)
+                # print(f"[climlab EBM] sent: F2PY_REDIS_S{cid}", flush=True)
                 utils.redis.put_tensor(
-                    f"f2py_redis_s{cid}",
+                    f"F2PY_REDIS_S{cid}",
                     np.array(
                         [
                             cebm.ebm.Ts,
@@ -148,16 +148,16 @@ while True:
         while sum(exists.params) != args.num_clients:
             for idx, cid in enumerate(range(args.num_clients)):
                 if params[idx] is None:
-                    if utils.redis.tensor_exists(f"py2f_redis_s{cid}"):
-                        # print(f"[climlab EBM] received: py2f_redis_s{cid}", flush=True)
+                    if utils.redis.tensor_exists(f"PY2F_REDIS_S{cid}"):
+                        # print(f"[climlab EBM] received: PY2F_REDIS_S{cid}", flush=True)
                         params[idx] = utils.redis.get_tensor(
-                            f"py2f_redis_s{cid}"
+                            f"PY2F_REDIS_S{cid}"
                         )
                         exists.params[idx] = 1
                         # print(f"[climlab EBM] exists.params: {exists.params}", flush=True)
                         time.sleep(WAIT_TIME)
-                        # print(f"[climlab EBM] deleted: py2f_redis_s{cid}", flush=True)
-                        utils.redis.delete_tensor(f"py2f_redis_s{cid}")
+                        # print(f"[climlab EBM] deleted: PY2F_REDIS_S{cid}", flush=True)
+                        utils.redis.delete_tensor(f"PY2F_REDIS_S{cid}")
                     else:
                         continue  # Extract the params in another pass
 
@@ -183,9 +183,9 @@ while True:
             # print(f"[climlab EBM] deleted: SIGCOMPUTE_S{cid}", flush=True)
             utils.redis.delete_tensor(f"SIGCOMPUTE_S{cid}")
             time.sleep(WAIT_TIME)
-            # print(f"[climlab EBM] sent: f2py_redis_s{cid}", flush=True)
+            # print(f"[climlab EBM] sent: F2PY_REDIS_S{cid}", flush=True)
             utils.redis.put_tensor(
-                f"f2py_redis_s{cid}",
+                f"F2PY_REDIS_S{cid}",
                 np.array([cebm.ebm.Ts, cebm.climlab_ebm.Ts], dtype=np.float32),
             )
 

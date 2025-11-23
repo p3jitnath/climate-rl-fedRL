@@ -38,8 +38,8 @@ program main
     ! Set the keys used to signal computation start and start with the cid
     write(k_sigcompute, '("SIGCOMPUTE_S", i0)') cid
     write(k_sigstart, '("SIGSTART_S", i0)') cid
-    write(k_f2py,'("f2py_redis_s", i0)') cid
-    write(k_py2f,'("py2f_redis_s", i0)') cid
+    write(k_f2py,'("F2PY_REDIS_S", i0)') cid
+    write(k_py2f,'("PY2F_REDIS_S", i0)') cid
 
     wait_time = 0.0001 ! seconds to wait between checks
 
