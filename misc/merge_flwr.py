@@ -18,7 +18,7 @@ import xarray as xr
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 from matplotlib.gridspec import GridSpec
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl"
 RECORDS_DIR = f"{BASE_DIR}/records"
 DATASETS_DIR = f"{BASE_DIR}/datasets"
 VIDEOS_DIR = f"{BASE_DIR}/videos"

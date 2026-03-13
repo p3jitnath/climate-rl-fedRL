@@ -6,7 +6,7 @@ import re
 import subprocess
 import time
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl"
 
 sbatch_cmds = [
     # f'sbatch {BASE_DIR}/param_tune/tune_flwr_slurm.sh --algo ddpg --exp_id "ebm-v3-fedRL-L-20k-a2-fed05" --env_id "EnergyBalanceModel-v3" --opt_timesteps 20000 --flwr_episodes 5',

@@ -16,7 +16,7 @@ EBM_SUBLATITUDES = EBM_LATITUDES // NUM_CLIENTS
 
 class Utils:
 
-    BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+    BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl"
     DATASETS_DIR = f"{BASE_DIR}/datasets"
 
     fp_Ts = f"{DATASETS_DIR}/skt.sfc.mon.1981-2010.ltm.nc"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_DIR="/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+BASE_DIR="/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl"
 ALGOS=("ddpg" "td3" "tqc")
 
 GREEN="\033[0;32m"

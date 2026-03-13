@@ -4,7 +4,7 @@ import os
 import sys
 from distutils.util import strtobool
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl"
 EPISODE_LENGTH = 200
 TOTAL_TIMESTEPS = 20000
 

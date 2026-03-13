@@ -1,6 +1,6 @@
 import sys
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
+BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
 RL_ALGO = "ddpg"
 ENV_ID = "SimpleClimateBiasCorrection-v0"
 sys.path.append(f"{BASE_DIR}/rl-algos/{RL_ALGO}")

@@ -20,9 +20,9 @@ from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 
 CLIMATE_RL_BASE_DIR = (
-    "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/climate-rl"
+    "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl/climate-rl"
 )
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
+BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl/cm-v5"
 sys.path.append(CLIMATE_RL_BASE_DIR)
 sys.path.append(BASE_DIR)
 

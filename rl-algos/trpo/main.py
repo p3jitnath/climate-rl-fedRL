@@ -21,7 +21,7 @@ from trpo_actor import Actor
 from trpo_critic import Critic
 from trpo_utils import conjugate_gradient, fisher_vector_product, update_model
 
-BASE_DIR = "/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl"
+BASE_DIR = "/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl"
 sys.path.append(BASE_DIR)
 
 from fedrl.fedrl import FedRL

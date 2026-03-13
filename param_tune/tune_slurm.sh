@@ -1,8 +1,8 @@
 #!/bin/sh
 
 #SBATCH --job-name=pn341_ray_slurm_optimise
-#SBATCH --output=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
-#SBATCH --error=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
+#SBATCH --output=/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.out
+#SBATCH --error=/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl/slurm/ray_slurm_%j.err
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
@@ -19,7 +19,7 @@
 ## SBATCH --gres=gpu:2
 
 source ~/miniconda3/etc/profile.d/conda.sh && conda activate venv
-BASE_DIR=/gws/nopw/j04/ai4er/users/pn341/climate-rl-fedrl
+BASE_DIR=/gws/ssde/j25a/ai4er/users/pn341/climate-rl-fedrl
 set -x
 
 # 1a. Function to display usage
