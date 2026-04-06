@@ -22,7 +22,7 @@
 # FedRAIN-Lite: Federated Reinforcement Algorithms for Improving Idealised Numerical Weather and Climate Models
 [![arXiv](https://img.shields.io/badge/cs.LG-2508.14315-b31b1b?logo=arXiv&logoColor=red)](https://arxiv.org/abs/2508.14315) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17116349.svg)](https://doi.org/10.5281/zenodo.17116349) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-This GitHub repository contains the code, data, and figures for the paper [**FedRAIN-Lite: Federated Reinforcement Algorithms for Improving Idealised Numerical Weather and Climate Models**](https://arxiv.org/abs/2508.14315). Also includes the EBM experiments from the paper [**Learning State-Dependent Weather and Climate Model Parametrisations with Reinforcement Learning**](#).
+This GitHub repository contains the code, data, and figures for the paper [**FedRAIN-Lite: Federated Reinforcement Algorithms for Improving Idealised Numerical Weather and Climate Models**](https://arxiv.org/abs/2508.14315). Also includes the EBM experiments from the paper [**Replacing Tunable Parameters in Weather and Climate Models with State-Dependent Functions using Reinforcement Learning**](https://arxiv.org/abs/2601.04268).
 
 ## Overview
 

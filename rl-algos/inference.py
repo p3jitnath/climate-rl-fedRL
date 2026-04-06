@@ -48,7 +48,7 @@ class Args:
     capture_video_freq: int = 10
     """episode frequency at which to capture video"""
 
-    env_id: str = "SimpleClimateBiasCorrection-v0"
+    env_id: str = "EnergyBalanceModel-v0"
     """the environment id of the environment"""
     algo: str = "ddpg"
     """the RL algorithm to be used"""
@@ -67,7 +67,7 @@ class Args:
 
     num_steps: int = 200
     """the number of steps to run in each environment per policy rollout"""
-    record_step: int = 60000
+    record_step: int = 20000
     """step count to load the run record"""
 
     flwr_client: Optional[int] = None

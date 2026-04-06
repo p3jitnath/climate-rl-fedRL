@@ -202,3 +202,5 @@ SM-FLWR*/
 # Exceptions
 !assets/*
 !datasets/*.pkl
+!.json
+!.csv
